@@ -26,6 +26,21 @@ S1_LIGHT = "EEF4EB"   # very light sage
 S2_HDR   = "8A6A30"   # warm amber  for Sem2 col header
 S2_LIGHT = "F8F2E6"   # very light amber
 
+# ── Per-student colors (header bg / tab color) ────────────────────────────────
+# Light-to-medium, print-friendly, clearly distinct from each other
+STUDENT_COLORS = [
+    ("CE8282", "FAEEEE"),   # 1  dusty rose      (brand accent)
+    ("7A9E7E", "EDF4EE"),   # 2  sage green
+    ("7AA0C4", "EDF3FA"),   # 3  sky blue
+    ("C4A462", "FAF3E3"),   # 4  warm amber
+    ("9B8EC4", "F1EEF9"),   # 5  soft lavender
+    ("6AADA6", "E8F5F4"),   # 6  muted teal
+    ("C47A6A", "FAF0EE"),   # 7  warm terracotta
+    ("7A8EC4", "EEF1FA"),   # 8  periwinkle
+    ("8FA87A", "F1F5EE"),   # 9  olive green
+    ("A87A9E", "F5EEF4"),   # 10 soft plum
+]   # (header_fill, row_light_tint)
+
 # ── Subjects ──────────────────────────────────────────────────────────────────
 # (name, editable)  — colours come from palette now, not per-subject
 CORE = [
@@ -548,8 +563,9 @@ def build_course_content(wb):
             f"&\"   ·   \"&'Getting Started'!F{gs_row},"
             f"\"  STUDENT {n}\")"
         )
+        hdr_fill, _ = STUDENT_COLORS[si]
         c.font      = fnt(size=11, bold=True, color=WHITE)
-        c.fill      = fill(ACCENT if si == 0 else WARM_700)
+        c.fill      = fill(hdr_fill)
         c.border    = box(color=WARM_300)
         c.alignment = aln(h="left", v="center")
 
@@ -579,26 +595,33 @@ def build_course_content(wb):
 # Col layout: A(28) B(14) C(14) D(14) E(18) F(4) G(14) H(14) I(14) J(18)
 ST_WIDTHS = [28, 14, 14, 14, 18, 4, 14, 14, 14, 18]
 
-def cc_row(student_idx, subject_idx):
-    """Course Content data row for 0-based student and subject indices."""
-    return CC_DATA_START + student_idx * NUM_SUBJECTS + subject_idx
+
+# New CC column map (Slot 1 only; Slot 2 is cols G-J)
+CC_COLS = {
+    "custom_name": 1,   # col A — subject label / elective name
+    "curriculum":  2,   # col B — Slot 1 curriculum title
+    "unit_type":   3,   # col C — Slot 1 unit type
+    "s1_units":    4,   # col D — Slot 1 Sem 1 units
+    "s2_units":    5,   # col E — Slot 1 Sem 2 units
+}
 
 def cc_ref(student_idx, subject_idx, col_name):
-    r   = cc_row(student_idx, subject_idx)
+    r   = cc_student_data_row(student_idx, subject_idx)
     col = CC_COLS[col_name]
     return f"'Course Content'!{get_column_letter(col)}{r}"
 
 def build_student_sheet(wb, idx):
     n  = idx + 1
-    gs_name_row = GS_STUDENT_ROW + idx
+    gs_name_row  = GS_STUDENT_ROW + idx
+    stu_color, _ = STUDENT_COLORS[idx]   # header fill matching CC block
 
     ws = wb.create_sheet(f"Student {n}")
     set_widths(ws, ST_WIDTHS)
 
-    # Banner
+    # Banner — uses the student's personal color
     title_bar(ws, 1, 1, 10,
               f"='Getting Started'!B{gs_name_row}",
-              height=40)
+              bg=stu_color, height=40)
     ws.cell(1, 1).value = (
         f"=IF('Getting Started'!B{gs_name_row}=\"\","
         f"\"Student {n}\","
@@ -684,10 +707,8 @@ def add_subject_section(ws, r0, subj_name, editable, student_idx, subject_idx):
     # Short references to Course Content cells for this student+subject
     cur_ref  = cc_ref(student_idx, subject_idx, "curriculum")
     cust_ref = cc_ref(student_idx, subject_idx, "custom_name")
-    ut_ref   = cc_ref(student_idx, subject_idx, "unit_type")
     s1_ref   = cc_ref(student_idx, subject_idx, "s1_units")
     s2_ref   = cc_ref(student_idx, subject_idx, "s2_units")
-    notes_ref= cc_ref(student_idx, subject_idx, "notes")
 
     # ── Row 0: subject header ──────────────────────────────────────────────
     ws.row_dimensions[r0].height = 24
@@ -865,11 +886,7 @@ def add_subject_section(ws, r0, subj_name, editable, student_idx, subject_idx):
     ws.row_dimensions[r_notes].height = 20
     ws.merge_cells(start_row=r_notes, start_column=1, end_row=r_notes, end_column=10)
     c = ws.cell(r_notes, 1)
-    # Notes pulled from Course Content
-    c.value = (
-        f'=IFERROR(IF({notes_ref}="","",{notes_ref}),"")'
-    )
-    c.fill      = fill(WARM_100)
+    c.fill      = fill(WHITE)
     c.border    = bottom_only(WARM_300)
     c.font      = fnt(size=9, italic=True, color=WARM_500)
     c.alignment = aln(h="left", v="center")
@@ -885,8 +902,12 @@ def main():
     build_getting_started(wb)
     build_course_content(wb)
 
-    wb["Getting Started"].sheet_properties.tabColor  = ACCENT
-    wb["Course Content"].sheet_properties.tabColor   = "A08878"
+    # Add Student 1 tab for now; remaining tabs added once design is finalised
+    ws1 = build_student_sheet(wb, 0)
+    ws1.sheet_properties.tabColor = STUDENT_COLORS[0][0]
+
+    wb["Getting Started"].sheet_properties.tabColor = ACCENT
+    wb["Course Content"].sheet_properties.tabColor  = WARM_700
 
     out = "/home/user/curriculum-planning/Homeschool_Curriculum_Planner.xlsx"
     wb.save(out)
