@@ -314,8 +314,7 @@ def build_getting_started(wb):
         (4, 4, "Date of Birth"),
         (5, 5, "Class of\n(Grad Year)"),
         (6, 6, "Grade\n(Auto)"),
-        (7, 9, "Curriculum Notes"),
-        (10,10,""),
+        (7, 10, "Curriculum Notes"),
     ]
     for c1, c2, txt in hdr_def:
         if c1 != c2:
@@ -360,15 +359,14 @@ def build_getting_started(wb):
         inp(ws, row, 7, bg=bg)
 
     # Instructions
-    spacer(ws, 33 + NUM_STUDENTS - 10)
-    r = 40
+    spacer(ws, GS_STUDENT_ROW + NUM_STUDENTS)   # row after last student
+    r = GS_STUDENT_ROW + NUM_STUDENTS + 1
     sub_banner(ws, r, 1, 10, "QUICK START GUIDE", bg=WARM_200, size=10, height=20)
     steps = [
         "1.  Set semester dates above (Sem 1 and Sem 2) — week counts auto-calculate.",
         "2.  Enter each student's name, DOB, and graduation year — grade fills automatically.",
         "3.  Go to the  Course Content  tab to assign curricula to each student.",
-        "4.  Each student's tab auto-populates pace calculations from Course Content.",
-        "5.  Yellow cells = type here.   Cream/tinted cells = formulas, leave them alone.",
+        "4.  Each student's individual schedule tab will auto-populate from Course Content.",
     ]
     for i, step in enumerate(steps):
         rr = r + 1 + i
@@ -379,178 +377,186 @@ def build_getting_started(wb):
 
 
 # ── COURSE CONTENT ────────────────────────────────────────────────────────────
-# Column layout (10 cols):
-# A(5): Student #   B(20): Student Name (formula)   C(28): Subject / Course
-# D(16): Custom Name (electives)   E(32): Curriculum / Book Title
-# F(12): Unit Type   G(11): Sem 1 Units   H(11): Sem 2 Units   I(30): Notes
-CC_WIDTHS = [5, 20, 28, 18, 34, 12, 11, 11, 32, 4]
-CC_COLS   = {"student_num":1,"student_name":2,"subject":3,"custom_name":4,
-             "curriculum":5,"unit_type":6,"s1_units":7,"s2_units":8,"notes":9}
+# Col layout (10 cols):
+# A(26): Subject name (or elective custom-name input)
+# B(30): Curriculum 1 title   C(11): Unit type   D(9): Sem 1   E(9): Sem 2
+# F(3):  divider
+# G(30): Curriculum 2 title   H(11): Unit type   I(9): Sem 1   J(9): Sem 2
+CC_WIDTHS = [26, 30, 11, 9, 9, 3, 30, 11, 9, 9]
+
+# Rows per student block: 1 header + 14 subject rows + 1 spacer = 16
+CC_ROWS_PER_STUDENT = 16
+CC_GROUP_HDR_ROW    = 7
+CC_GROUP_DATA_START = 8    # rows 8–21 = 14 group-studies subject rows
+CC_STUDENT_FIRST    = 23   # Student 1 header row (data rows 24–37, spacer 38)
+
+def cc_student_hdr_row(si):   # 0-based student index
+    return CC_STUDENT_FIRST + si * CC_ROWS_PER_STUDENT
+
+def cc_student_data_row(si, sj):   # subject j for student i
+    return cc_student_hdr_row(si) + 1 + sj
+
+
+def _cc_col_headers(ws, row):
+    """Draw the two-level column header at the given row (uses row and row+1)."""
+    ws.row_dimensions[row].height = 18
+    ws.row_dimensions[row + 1].height = 24
+
+    # Row 1: slot labels spanning their columns
+    ws.merge_cells(start_row=row, start_column=1, end_row=row+1, end_column=1)
+    sc(ws.cell(row, 1), value="Subject", size=9, bold=True, color=WARM_700,
+       bg=WARM_200, h="center", v="center", b=box(color=WARM_300))
+
+    for c1, c2, label, bg_col in [
+        (2, 5, "── Curriculum Slot 1 ──", S1_LIGHT),
+        (7,10, "── Curriculum Slot 2 ──", S2_LIGHT),
+    ]:
+        ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
+        sc(ws.cell(row, c1), value=label, size=9, bold=True, color=WARM_700,
+           bg=bg_col, h="center", b=box(color=WARM_300))
+
+    ws.cell(row, 6).fill = fill(OFF_WHITE)   # divider top half
+
+    # Row 2: sub-column labels
+    sub = [
+        (2, "Title / Book"),
+        (3, "Unit\nType"),
+        (4, "Sem 1\nUnits"),
+        (5, "Sem 2\nUnits"),
+        (7, "Title / Book"),
+        (8, "Unit\nType"),
+        (9, "Sem 1\nUnits"),
+        (10,"Sem 2\nUnits"),
+    ]
+    for col, txt in sub:
+        bg = S1_LIGHT if col <= 5 else S2_LIGHT
+        sc(ws.cell(row+1, col), value=txt, size=9, bold=True, color=WARM_700,
+           bg=bg, h="center", v="center", wrap=True, b=box(color=WARM_300))
+
+    ws.cell(row+1, 6).fill = fill(OFF_WHITE)   # divider bottom half
+
+
+def _cc_subject_row(ws, row, subj_name, editable=False, outline_level=0,
+                    hidden=False):
+    """Draw one subject data row."""
+    ws.row_dimensions[row].height   = 20
+    ws.row_dimensions[row].outlineLevel = outline_level
+    if hidden:
+        ws.row_dimensions[row].hidden = True
+
+    alt = OFF_WHITE if (row % 2 == 0) else WHITE
+
+    # Col A: subject label (or editable input for electives)
+    c = ws.cell(row, 1)
+    if editable:
+        c.fill      = fill(WHITE)
+        c.font      = fnt(size=10, italic=True, color=WARM_500)
+        if not c.value:
+            c.value = subj_name   # default placeholder
+    else:
+        c.value     = subj_name
+        c.fill      = fill(LINEN)
+        c.font      = fnt(size=10, bold=True, color=WARM_700)
+    c.border    = left_accent()
+    c.alignment = aln(h="left", v="center")
+
+    # Slot 1: cols B–E
+    inp(ws, row, 2, bg=WHITE)                           # curriculum title
+    c3 = inp(ws, row, 3, value="pages", bg=alt); c3.alignment = aln(h="center")
+    c4 = inp(ws, row, 4, bg=alt);  c4.alignment = aln(h="center")
+    c5 = inp(ws, row, 5, bg=alt);  c5.alignment = aln(h="center")
+
+    # Divider col F
+    ws.cell(row, 6).fill = fill(OFF_WHITE)
+
+    # Slot 2: cols G–J
+    inp(ws, row, 7, bg=WHITE)                           # curriculum title
+    c8  = inp(ws, row, 8, value="pages", bg=alt); c8.alignment  = aln(h="center")
+    c9  = inp(ws, row, 9, bg=alt);  c9.alignment  = aln(h="center")
+    c10 = inp(ws, row,10, bg=alt);  c10.alignment = aln(h="center")
+
 
 def build_course_content(wb):
     ws = wb.create_sheet("Course Content", 1)
     set_widths(ws, CC_WIDTHS)
 
-    title_bar(ws, 1, 1, 9, "Course Content  ·  Curriculum Planning Hub", height=40)
-    sub_banner(ws, 2, 1, 9,
-               "Enter each student's curricula here. "
-               "Use the  View Student  filter below to focus on one student at a time.",
+    # ── Header ────────────────────────────────────────────────────────────────
+    title_bar(ws, 1, 1, 10, "Course Content  ·  Curriculum Planning Hub", height=40)
+    sub_banner(ws, 2, 1, 10,
+               "Each subject has two curriculum slots.  "
+               "Group Studies apply to all students.  "
+               "Use the  ＋ / −  buttons on the left to expand or collapse each student.",
                bg=WARM_200, size=10, height=20)
     spacer(ws, 3)
 
-    # View Student control (row 4–5)
-    ws.row_dimensions[4].height = 22
-    ws.merge_cells("A4:B4")
-    sc(ws.cell(4,1), value="View / Filter Student:", size=10, bold=True,
-       color=WARM_700, bg=ACCENT_PALE, h="right", b=box(color=ACCENT))
-
-    c_view = ws.cell(4, 3)
-    c_view.value = 1
-    c_view.fill  = fill(WHITE)
-    c_view.border= box(color=ACCENT)
-    c_view.font  = fnt(size=12, bold=True, color=ACCENT)
-    c_view.alignment = aln(h="center")
-    dv_view = DataValidation(type="whole", operator="between",
-                             formula1="1", formula2="10",
-                             showErrorMessage=True,
-                             errorTitle="Invalid", error="Enter 1–10")
-    ws.add_data_validation(dv_view)
-    dv_view.add(ws["C4"])
-
-    ws.merge_cells("D4:E4")
-    ws["D4"].value = (
-        f"=IFERROR(\"→  \"&INDEX({{\"Student 1\",\"Student 2\",\"Student 3\","
-        f"\"Student 4\",\"Student 5\",\"Student 6\",\"Student 7\","
-        f"\"Student 8\",\"Student 9\",\"Student 10\"}},C4),\"\")"
-    )
-    # simpler: just show name from GS
-    ws["D4"].value = (
-        '=IFERROR("→  "&CHOOSE(C4,'
-        + ",".join(f"'Getting Started'!B{GS_STUDENT_ROW+i}" for i in range(10))
-        + '),"→")'
-    )
-    ws["D4"].fill      = fill(ACCENT_PALE)
-    ws["D4"].border    = box(color=ACCENT)
-    ws["D4"].font      = fnt(size=11, bold=True, color=WARM_700)
-    ws["D4"].alignment = aln(h="left", v="center")
-
-    ws.merge_cells("F4:I4")
-    sc(ws.cell(4,6),
-       value="Rows highlighted in pink = selected student's courses.",
-       size=9, italic=True, color=WARM_500, bg=ACCENT_PALE)
+    # Tip row
+    ws.row_dimensions[4].height = 16
+    ws.merge_cells("A4:J4")
+    sc(ws.cell(4, 1),
+       value="  Tip: click the  −  button beside a student's name to collapse their rows.  "
+             "Expand only the student you're currently planning for.",
+       size=9, italic=True, color=WARM_500, bg=OFF_WHITE)
 
     spacer(ws, 5)
 
-    # Hint row 6
-    ws.row_dimensions[6].height = 16
-    ws.merge_cells("A6:I6")
-    sc(ws.cell(6,1),
-       value="  Tip: Use the column filter arrows (▼) to show only one student's rows."
-             "  Yellow cells = type here.  All other cells are locked formulas.",
-       size=9, italic=True, color=WARM_500, bg=OFF_WHITE)
+    # Column headers (rows 5–6, but we'll use 5=slot labels, 6=sub-cols)
+    _cc_col_headers(ws, 5)
 
-    # Column headers row 7
-    ws.row_dimensions[CC_HDR_ROW].height = 28
-    col_hdrs = [
-        (1, "Std\n#"),
-        (2, "Student Name"),
-        (3, "Subject"),
-        (4, "Custom Name\n(Electives)"),
-        (5, "Curriculum / Book Title"),
-        (6, "Unit\nType"),
-        (7, "Semester 1\nUnits"),
-        (8, "Semester 2\nUnits"),
-        (9, "Notes"),
-    ]
-    for col, txt in col_hdrs:
-        c = ws.cell(CC_HDR_ROW, col)
-        sc(c, value=txt, size=9, bold=True, color=WARM_700, bg=WARM_200,
-           h="center", v="center", wrap=True, b=box(color=WARM_300))
+    spacer(ws, 7, height=6)  # tiny spacer before Group section, reused as row 7
 
-    # Data rows
-    subject_names = [s[0] for s in ALL_SUBJECTS]
-    dv_std = DataValidation(type="whole", operator="between",
-                            formula1="1", formula2="10")
-    ws.add_data_validation(dv_std)
+    # ── Group Studies section ─────────────────────────────────────────────────
+    ws.row_dimensions[CC_GROUP_HDR_ROW].height = 26
+    ws.merge_cells(f"A{CC_GROUP_HDR_ROW}:J{CC_GROUP_HDR_ROW}")
+    c = ws.cell(CC_GROUP_HDR_ROW, 1)
+    sc(c, value="  GROUP STUDIES  ·  Applies to All Students",
+       size=12, bold=True, color=WHITE, bg=WARM_700,
+       h="left", v="center", b=box(color=WARM_300))
 
+    for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
+        _cc_subject_row(ws, CC_GROUP_DATA_START + sj, subj_name, editable,
+                        outline_level=0)
+
+    spacer(ws, CC_GROUP_DATA_START + NUM_SUBJECTS)   # row 22
+
+    # ── Per-student sections ──────────────────────────────────────────────────
     for si in range(NUM_STUDENTS):
-        for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
-            row = CC_DATA_START + si * NUM_SUBJECTS + sj
-            ws.row_dimensions[row].height = 20
-            bg = WHITE if sj % 2 == 0 else OFF_WHITE
+        hdr_row  = cc_student_hdr_row(si)
+        gs_row   = GS_STUDENT_ROW + si
+        n        = si + 1
+        spc_row  = hdr_row + NUM_SUBJECTS + 1
 
-            # Col A: Student number (pre-filled, editable)
-            c = ws.cell(row, 1)
-            c.value     = si + 1
-            c.fill      = fill(bg)
-            c.border    = box(color=WARM_300)
-            c.font      = fnt(size=10, bold=True, color=WARM_700)
-            c.alignment = aln(h="center")
-            dv_std.add(c)
-
-            # Col B: Student name (formula)
-            c = ws.cell(row, 2)
-            c.value     = f"='Getting Started'!B{GS_STUDENT_ROW + si}"
-            c.fill      = fill(WARM_100)
-            c.border    = box(color=WARM_300)
-            c.font      = fnt(size=10, color=WARM_500)
-            c.alignment = aln(h="left")
-
-            # Col C: Subject (pre-filled, editable)
-            c = ws.cell(row, 3)
-            c.value     = subj_name
-            c.fill      = fill(bg)
-            c.border    = box(color=WARM_300)
-            c.font      = fnt(size=10, bold=not editable, color=WARM_700)
-            c.alignment = aln(h="left")
-
-            # Col D: Custom name (electives only)
-            c = ws.cell(row, 4)
-            if editable:
-                c.fill   = fill(WHITE)
-                c.font   = fnt(size=10, color=WARM_900)
-            else:
-                c.fill   = fill(WARM_100)
-                c.font   = fnt(size=9, italic=True, color=WARM_500)
-                c.value  = "—"
-            c.border    = box(color=WARM_300)
-            c.alignment = aln(h="left")
-
-            # Col E: Curriculum title — user input
-            inp(ws, row, 5, bg=WHITE)
-
-            # Col F: Unit type — input
-            c = inp(ws, row, 6, value="pages", bg=WHITE)
-            c.alignment = aln(h="center")
-
-            # Col G: Sem 1 units — input
-            c = inp(ws, row, 7, bg=WHITE)
-            c.alignment = aln(h="center")
-
-            # Col H: Sem 2 units — input
-            c = inp(ws, row, 8, bg=WHITE)
-            c.alignment = aln(h="center")
-
-            # Col I: Notes — input
-            inp(ws, row, 9, bg=WHITE)
-
-    # Conditional formatting: highlight selected student's rows
-    last_data_row = CC_DATA_START + NUM_STUDENTS * NUM_SUBJECTS - 1
-    data_range    = f"A{CC_DATA_START}:I{last_data_row}"
-    ws.conditional_formatting.add(
-        data_range,
-        FormulaRule(
-            formula=[f"$A{CC_DATA_START}=$C$4"],
-            fill=PatternFill(start_color=ACCENT_PALE, end_color=ACCENT_PALE,
-                             fill_type="solid"),
+        # Student header row (outline level 0 — always visible)
+        ws.row_dimensions[hdr_row].height = 26
+        ws.merge_cells(f"A{hdr_row}:J{hdr_row}")
+        c = ws.cell(hdr_row, 1)
+        c.value = (
+            f"=IF('Getting Started'!B{gs_row}<>\"\","
+            f"\"  \"&UPPER('Getting Started'!B{gs_row})"
+            f"&\"   ·   \"&'Getting Started'!F{gs_row},"
+            f"\"  STUDENT {n}\")"
         )
-    )
+        c.font      = fnt(size=11, bold=True, color=WHITE)
+        c.fill      = fill(ACCENT if si == 0 else WARM_700)
+        c.border    = box(color=WARM_300)
+        c.alignment = aln(h="left", v="center")
 
-    # AutoFilter on header row
-    ws.auto_filter.ref = f"A{CC_HDR_ROW}:I{last_data_row}"
+        # Subject rows — collapse all but student 1 by default
+        collapsed = (si > 0)
+        for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
+            _cc_subject_row(ws, cc_student_data_row(si, sj), subj_name,
+                            editable, outline_level=1, hidden=collapsed)
 
-    # Freeze panes: freeze rows 1-7 and col A
-    ws.freeze_panes = f"B{CC_DATA_START}"
+        # Spacer inside group (also collapsed with student)
+        ws.row_dimensions[spc_row].height = 6
+        ws.row_dimensions[spc_row].outlineLevel = 1
+        if collapsed:
+            ws.row_dimensions[spc_row].hidden = True
+
+    # Freeze subject column and top header rows
+    ws.freeze_panes = f"B{CC_GROUP_HDR_ROW}"
+
+    # Sheet outline settings: show outline symbols
+    ws.sheet_properties.outlinePr.summaryBelow = False
 
     return ws
 
