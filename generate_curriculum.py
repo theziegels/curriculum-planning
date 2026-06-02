@@ -237,6 +237,18 @@ def build_getting_started(wb):
         ws.merge_cells(f"G{row}:J{row}")
         sc(ws.cell(row, 7), value=hint, size=9, italic=True, color=WARM_500)
 
+    # Explicit date-picker validation for Sem 1 date cells
+    # DataValidation(type="date") is what tells Excel to show the calendar
+    # picker popup — number format alone only guarantees display formatting.
+    dv_date_s1 = DataValidation(
+        type="date", operator="between",
+        formula1="DATE(2000,1,1)", formula2="DATE(2099,12,31)",
+        showErrorMessage=False, showInputMessage=False,
+    )
+    ws.add_data_validation(dv_date_s1)
+    dv_date_s1.add("C10:F10")
+    dv_date_s1.add("C11:F11")
+
     spacer(ws, 13)
 
     # Semester 2
@@ -256,6 +268,16 @@ def build_getting_started(wb):
         merge_inp(ws, row, 3, 6, formula=formula, default=default, fmt=fmt)
         ws.merge_cells(f"G{row}:J{row}")
         sc(ws.cell(row, 7), value=hint, size=9, italic=True, color=WARM_500)
+
+    # Same explicit date-picker validation for Sem 2
+    dv_date_s2 = DataValidation(
+        type="date", operator="between",
+        formula1="DATE(2000,1,1)", formula2="DATE(2099,12,31)",
+        showErrorMessage=False, showInputMessage=False,
+    )
+    ws.add_data_validation(dv_date_s2)
+    dv_date_s2.add("C15:F15")
+    dv_date_s2.add("C16:F16")
 
     spacer(ws, 18)
 
