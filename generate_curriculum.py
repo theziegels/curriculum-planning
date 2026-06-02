@@ -347,7 +347,7 @@ def build_getting_started(wb):
         # Grade formula
         c = ws.cell(row, 6)
         c.value = (
-            f'=IF(OR(B{row}="",E{row}=""),"",LET(g,12-(E{row}-YEAR($C$19)),'
+            f'=IF(OR(B{row}="",E{row}=""),"",LET(yr,IF($C$19<>"",YEAR($C$19),IF($C$6<>"",VALUE(RIGHT($C$6,4)),YEAR(TODAY()))),g,12-(E{row}-yr),'
             f'IF(g=11,"11th",IF(g=12,"12th",IF(g=1,"1st",'
             f'IF(g=2,"2nd",IF(g=3,"3rd",g&"th")))))))'
         )
