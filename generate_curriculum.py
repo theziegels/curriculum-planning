@@ -1,652 +1,827 @@
 #!/usr/bin/env python3
-"""Generate Homeschool Curriculum Planning workbook — with semesters & electives."""
+"""Homeschool Curriculum Planner — warm neutrals, semester split, Course Content hub."""
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.formatting.rule import FormulaRule
 
-# ── palette ───────────────────────────────────────────────────────────────────
-NAVY         = "1F3864"
-MED_BLUE     = "2E74B5"
-LIGHT_BLUE   = "DEEAF1"
-SEM1_COLOR   = "1A5E3A"   # dark green  – Semester 1
-SEM1_LIGHT   = "D4EFDF"
-SEM2_COLOR   = "7B3F00"   # dark amber  – Semester 2
-SEM2_LIGHT   = "FDEBD0"
-WHITE        = "FFFFFF"
-LIGHT_GRAY   = "F2F2F2"
-MID_GRAY     = "D9D9D9"
-DARK_GRAY    = "595959"
-INPUT_YELLOW = "FFFACD"
-FORMULA_BG   = "EBF3FB"
-DIVIDER_COL  = "BDC3C7"
+# ── Palette ───────────────────────────────────────────────────────────────────
+ACCENT       = "CE8282"   # brand rose  — used sparingly
+ACCENT_PALE  = "FAF0F0"   # very light rose tint (highlight)
+WARM_900     = "3D3530"   # near-black warm brown
+WARM_700     = "6B5C55"   # medium warm taupe  (labels)
+WARM_500     = "A08878"   # lighter taupe      (hints)
+WARM_300     = "D4C4BB"   # border / divider
+WARM_200     = "EDE3DC"   # section header bg
+WARM_100     = "F7F2EE"   # formula cell bg
+LINEN        = "F5EDE3"   # subject-header bg
+WHITE        = "FFFFFF"   # input cells
+OFF_WHITE    = "FAF8F6"   # alt rows
 
-# ── subjects ──────────────────────────────────────────────────────────────────
-# (display name, header fill hex, row fill hex, editable_name)
-CORE_SUBJECTS = [
-    ("Bible",                    "5B2C6F", "F5EEF8", False),
-    ("Math",                     "1A5276", "D6EAF8", False),
-    ("English / Language Arts",  "922B21", "FDEDEC", False),
-    ("Reading",                  "784212", "FDEBD0", False),
-    ("Writing / Composition",    "7D6608", "FEFDE2", False),
-    ("Science",                  "0E6655", "D5F5E3", False),
-    ("Social Studies / History", "6E2F0E", "FAE5D3", False),
-    ("Health",                   "1E8449", "D4EFDF", False),
-    ("Physical Education",       "117A65", "D1F2EB", False),
-    ("Art / Music",              "76448A", "F4ECF7", False),
+# Semester tints (light, non-distracting)
+S1_HDR   = "5C7A52"   # sage green  for Sem1 col header
+S1_LIGHT = "EEF4EB"   # very light sage
+S2_HDR   = "8A6A30"   # warm amber  for Sem2 col header
+S2_LIGHT = "F8F2E6"   # very light amber
+
+# ── Subjects ──────────────────────────────────────────────────────────────────
+# (name, editable)  — colours come from palette now, not per-subject
+CORE = [
+    ("Bible",                   False),
+    ("Math",                    False),
+    ("English / Language Arts", False),
+    ("Reading",                 False),
+    ("Writing / Composition",   False),
+    ("Science",                 False),
+    ("Social Studies / History",False),
+    ("Health",                  False),
+    ("Physical Education",      False),
+    ("Art / Music",             False),
 ]
-
-ELECTIVE_SUBJECTS = [
-    ("Elective / Other 1",       "C7540A", "FEF0E7", True),
-    ("Elective / Other 2",       "B7770D", "FEF9E7", True),
-    ("Elective / Other 3",       "2E4057", "EAF0FB", True),
-    ("Elective / Other 4",       "4A235A", "F5EEF8", True),
+ELECTIVES = [
+    ("Elective / Other 1", True),
+    ("Elective / Other 2", True),
+    ("Elective / Other 3", True),
+    ("Elective / Other 4", True),
 ]
+ALL_SUBJECTS = CORE + ELECTIVES   # 14 total
 
-ALL_SUBJECTS = CORE_SUBJECTS + ELECTIVE_SUBJECTS
-
-NUM_STUDENTS = 10
-
-# Column widths for each sheet (10 cols A–J)
-COL_WIDTHS_GS = [4, 28, 18, 16, 14, 14, 14, 20, 14, 14]
-COL_WIDTHS_ST = [22, 14, 14, 14, 18, 4, 14, 14, 14, 18]
+NUM_STUDENTS  = 10
+NUM_SUBJECTS  = len(ALL_SUBJECTS)   # 14
+CC_HDR_ROW    = 7    # Course Content column-header row
+CC_DATA_START = 8    # first data row in Course Content
 
 
-# ── style helpers ─────────────────────────────────────────────────────────────
-def fill(hex_color):
-    return PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
+# ── Style helpers ─────────────────────────────────────────────────────────────
+def fill(h):
+    return PatternFill(start_color=h, end_color=h, fill_type="solid")
 
-def fnt(bold=False, size=11, color="000000", italic=False):
-    return Font(name="Calibri", size=size, bold=bold, italic=italic, color=color)
+def fnt(size=10, bold=False, color=WARM_900, italic=False):
+    return Font(name="Calibri", size=size, bold=bold, color=color, italic=italic)
 
 def aln(h="left", v="center", wrap=False):
     return Alignment(horizontal=h, vertical=v, wrap_text=wrap)
 
-def bdr(style="thin"):
-    s = Side(style=style)
+def side(style="thin", color=WARM_300):
+    return Side(style=style, color=color)
+
+def box(style="thin", color=WARM_300):
+    s = side(style, color)
     return Border(left=s, right=s, top=s, bottom=s)
 
-def outer_bdr():
-    s = Side(style="medium")
-    return Border(left=s, right=s, top=s, bottom=s)
+def left_accent():
+    """Thick left border in brand accent, thin others in warm gray."""
+    return Border(
+        left=Side(style="medium", color=ACCENT),
+        right=side(),
+        top=side(),
+        bottom=side(),
+    )
 
-def set_col_widths(ws, widths):
-    for i, w in enumerate(widths, start=1):
+def bottom_only(color=WARM_300):
+    return Border(bottom=Side(style="thin", color=color))
+
+def set_widths(ws, widths):
+    for i, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-def sc(cell, value=None, bold=False, size=11, fcolor="000000",
-       bg=None, italic=False, h="left", v="center", wrap=False, b=None):
+def cell(ws, row, col):
+    return ws.cell(row=row, column=col)
+
+def sc(c, value=None, size=10, bold=False, color=WARM_900, italic=False,
+       bg=None, h="left", v="center", wrap=False, b=None):
     if value is not None:
-        cell.value = value
-    cell.font  = fnt(bold=bold, size=size, color=fcolor, italic=italic)
-    cell.alignment = aln(h=h, v=v, wrap=wrap)
-    if bg:
-        cell.fill = fill(bg)
-    if b:
-        cell.border = b
-
-def lbl(ws, row, col, text, bg=LIGHT_GRAY, bold=True, size=10, color=DARK_GRAY):
-    c = ws.cell(row=row, column=col)
-    sc(c, value=text, bold=bold, size=size, fcolor=color, bg=bg, b=bdr())
-
-def inp(ws, row, col, value=None, formula=None, bg=INPUT_YELLOW,
-        fmt=None, h="left", bold=False, size=10):
-    c = ws.cell(row=row, column=col)
-    if formula:
-        c.value = formula
-        c.fill  = fill(FORMULA_BG)
-        c.font  = fnt(size=size, bold=True)
-    else:
-        if value is not None:
-            c.value = value
+        c.value = value
+    c.font      = fnt(size=size, bold=bold, color=color, italic=italic)
+    c.alignment = aln(h=h, v=v, wrap=wrap)
+    if bg is not None:
         c.fill = fill(bg)
-        c.font = fnt(size=size, bold=bold)
-    c.border    = bdr()
+    if b is not None:
+        c.border = b
+    return c
+
+def lbl(ws, row, col, text, bg=WHITE, bold=True, color=WARM_700, size=10):
+    c = ws.cell(row=row, column=col)
+    sc(c, value=text, size=size, bold=bold, color=color, bg=bg, b=box())
+
+def inp(ws, row, col, value=None, h="left", fmt=None, bg=WHITE):
+    c = ws.cell(row=row, column=col)
+    c.fill      = fill(bg)
+    c.border    = box()
+    c.font      = fnt(size=10)
+    c.alignment = aln(h=h, v="center")
+    if value is not None:
+        c.value = value
+    if fmt:
+        c.number_format = fmt
+    return c
+
+def formula_cell(ws, row, col, formula, h="center", bold=True, size=10):
+    c = ws.cell(row=row, column=col)
+    c.value     = formula
+    c.fill      = fill(WARM_100)
+    c.border    = box()
+    c.font      = fnt(size=size, bold=bold, color=WARM_700)
+    c.alignment = aln(h=h, v="center")
+    return c
+
+def merge_sc(ws, r, c1, c2, **kwargs):
+    ws.merge_cells(start_row=r, start_column=c1, end_row=r, end_column=c2)
+    return sc(ws.cell(r, c1), **kwargs)
+
+def merge_inp(ws, r, c1, c2, value=None, formula=None, fmt=None, h="left", default=None):
+    ws.merge_cells(start_row=r, start_column=c1, end_row=r, end_column=c2)
+    c = ws.cell(r, c1)
+    if formula:
+        c.value     = formula
+        c.fill      = fill(WARM_100)
+        c.font      = fnt(size=10, bold=True, color=WARM_700)
+    else:
+        v = value if value is not None else default
+        if v is not None:
+            c.value = v
+        c.fill = fill(WHITE)
+        c.font = fnt(size=10)
+    c.border    = box()
     c.alignment = aln(h=h, v="center")
     if fmt:
         c.number_format = fmt
+    return c
 
-def merge_inp(ws, row, c1, c2, formula=None, default=None,
-              bg=INPUT_YELLOW, fmt=None, h="left", bold=False):
+def title_bar(ws, row, c1, c2, text, bg=ACCENT, fc=WHITE, size=16, height=44):
     ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
-    c = ws.cell(row=row, column=c1)
-    if formula:
-        c.value = formula
-        c.fill  = fill(FORMULA_BG)
-        c.font  = fnt(size=10, bold=True)
-    else:
-        if default is not None:
-            c.value = default
-        c.fill = fill(bg)
-        c.font = fnt(size=10, bold=bold)
-    c.border    = bdr()
-    c.alignment = aln(h=h, v="center")
-    if fmt:
-        c.number_format = fmt
+    c = ws.cell(row, c1)
+    sc(c, value=text, size=size, bold=True, color=fc, bg=bg, h="center", v="center")
+    ws.row_dimensions[row].height = height
+    return c
 
-def sec_hdr(ws, row, c1, c2, text, bg, fc="FFFFFF", size=12):
+def sub_banner(ws, row, c1, c2, text, bg=WARM_200, fc=WARM_700, size=11, height=22):
     ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
-    c = ws.cell(row=row, column=c1)
-    sc(c, value=text, bold=True, size=size, fcolor=fc, bg=bg,
-       h="center", v="center", b=bdr())
-    ws.row_dimensions[row].height = 22
+    c = ws.cell(row, c1)
+    sc(c, value=text, size=size, bold=True, color=fc, bg=bg, h="center", v="center")
+    ws.row_dimensions[row].height = height
+    return c
+
+def section_label(ws, row, c1, c2, text, height=20):
+    """Linen bg, accent left border, warm bold text."""
+    ws.merge_cells(start_row=row, start_column=c1, end_row=row, end_column=c2)
+    c = ws.cell(row, c1)
+    c.value     = "  " + text
+    c.font      = fnt(size=11, bold=True, color=WARM_700)
+    c.fill      = fill(LINEN)
+    c.border    = left_accent()
+    c.alignment = aln(h="left", v="center")
+    ws.row_dimensions[row].height = height
+    return c
+
+def spacer(ws, row, height=8):
+    ws.row_dimensions[row].height = height
 
 
-# ── GETTING STARTED SHEET ─────────────────────────────────────────────────────
+# ── GETTING STARTED ───────────────────────────────────────────────────────────
+# GS cell refs used elsewhere
+GS_S1_START  = "'Getting Started'!C10"
+GS_S1_END    = "'Getting Started'!C11"
+GS_S1_WEEKS  = "'Getting Started'!C12"
+GS_S2_START  = "'Getting Started'!C15"
+GS_S2_END    = "'Getting Started'!C16"
+GS_S2_WEEKS  = "'Getting Started'!C17"
+GS_DAYS      = "'Getting Started'!C7"
+
+def gs_student_name(i):   # i = 1-based
+    return f"'Getting Started'!B{22 + i}"
+
 def build_getting_started(wb):
     ws = wb.create_sheet("Getting Started", 0)
-    set_col_widths(ws, COL_WIDTHS_GS)
+    # cols: A(4) B(28) C(20) D(14) E(14) F(14) G(14) H(20) I(14) J(14)
+    set_widths(ws, [4, 28, 20, 14, 14, 14, 14, 20, 14, 14])
 
-    # Title
-    ws.merge_cells("A1:J1")
-    sc(ws["A1"], value="Homeschool Curriculum Planner",
-       bold=True, size=22, fcolor=WHITE, bg=NAVY, h="center", v="center")
-    ws.row_dimensions[1].height = 48
+    title_bar(ws, 1, 1, 10, "Homeschool Curriculum Planner")
 
-    ws.merge_cells("A2:J2")
-    sc(ws["A2"], value="Getting Started  —  School & Student Information",
-       bold=True, size=13, fcolor=WHITE, bg=MED_BLUE, h="center", v="center")
-    ws.row_dimensions[2].height = 26
+    sub_banner(ws, 2, 1, 10, "Getting Started  ·  School & Student Information")
+    spacer(ws, 3)
 
-    ws.row_dimensions[3].height = 6
+    # Settings block header
+    sub_banner(ws, 4, 2, 10, "SCHOOL YEAR SETTINGS", bg=WARM_200, size=10, height=20)
 
-    # ── Settings block ────────────────────────────────────────────────────────
-    sec_hdr(ws, 4, 1, 10, "SCHOOL YEAR SETTINGS", NAVY)
-
-    # Basic settings rows 5-7
-    basic = [
-        (5,  "School Name:",        None,           "Westfield Academy"),
-        (6,  "School Year:",        None,           "2025-2026"),
-        (7,  "School Days / Week:", None,           5),
-    ]
-    for row, label, formula, default in basic:
+    # Basic settings rows 5–7
+    for row, label, default, fmt in [
+        (5, "School Name",        "Westfield Academy", None),
+        (6, "School Year",        "2025-2026",         None),
+        (7, "School Days / Week", 5,                   None),
+    ]:
         ws.row_dimensions[row].height = 20
-        lbl(ws, row, 2, label)
-        merge_inp(ws, row, 3, 6, formula=formula, default=default)
+        lbl(ws, row, 2, label + ":", bg=WHITE, color=WARM_700)
+        merge_inp(ws, row, 3, 6, value=default, fmt=fmt)
 
-    ws.row_dimensions[8].height = 8
+    spacer(ws, 8)
 
-    # Semester 1 sub-header
-    sec_hdr(ws, 9, 2, 10, "SEMESTER 1  (September – December)", SEM1_COLOR, size=11)
+    # Semester 1
+    sub_banner(ws, 9, 2, 10, "Semester 1  ·  September – December",
+               bg=fill(S1_LIGHT).fgColor.rgb if False else S1_LIGHT,
+               fc=S1_HDR, size=10, height=20)
+    # fix: bg is a hex string
+    ws.cell(9, 2).fill = fill(S1_LIGHT)
+    ws.cell(9, 2).font = fnt(size=10, bold=True, color=S1_HDR)
 
-    sem1_rows = [
-        (10, "Sem 1 Start Date:",  None,                              None, "MM/DD/YYYY"),
-        (11, "Sem 1 End Date:",    None,                              None, "MM/DD/YYYY"),
-        (12, "Sem 1 Weeks:",       '=IFERROR(ROUNDDOWN((C11-C10)/7,0),"")', None, "0"),
-    ]
-    for row, label, formula, default, fmt in sem1_rows:
+    for row, label, formula, default, fmt, hint in [
+        (10, "Sem 1 Start Date", None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (11, "Sem 1 End Date",   None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (12, "Sem 1 Weeks",      '=IFERROR(ROUNDDOWN((C11-C10)/7,0),"")', None, "0", "← auto"),
+    ]:
         ws.row_dimensions[row].height = 20
-        lbl(ws, row, 2, label)
+        lbl(ws, row, 2, label + ":", bg=WHITE, color=WARM_700)
         merge_inp(ws, row, 3, 6, formula=formula, default=default, fmt=fmt)
-    ws["C12"].fill = fill(FORMULA_BG)
-    ws.merge_cells("G10:J10"); ws["G10"].value = "← Enter as MM/DD/YYYY"
-    ws["G10"].font = fnt(size=9, italic=True, color="808080")
-    ws.merge_cells("G11:J11"); ws["G11"].value = "← Enter as MM/DD/YYYY"
-    ws["G11"].font = fnt(size=9, italic=True, color="808080")
-    ws.merge_cells("G12:J12"); ws["G12"].value = "← Auto-calculated"
-    ws["G12"].font = fnt(size=9, italic=True, color="808080")
+        ws.merge_cells(f"G{row}:J{row}")
+        sc(ws.cell(row, 7), value=hint, size=9, italic=True, color=WARM_500)
 
-    ws.row_dimensions[13].height = 8
+    spacer(ws, 13)
 
-    # Semester 2 sub-header
-    sec_hdr(ws, 14, 2, 10, "SEMESTER 2  (January – May)", SEM2_COLOR, size=11)
+    # Semester 2
+    ws.merge_cells("B14:J14")
+    c = ws.cell(14, 2)
+    sc(c, value="Semester 2  ·  January – May", size=10, bold=True,
+       color=S2_HDR, bg=S2_LIGHT, h="center")
+    ws.row_dimensions[14].height = 20
 
-    sem2_rows = [
-        (15, "Sem 2 Start Date:",  None,                              None, "MM/DD/YYYY"),
-        (16, "Sem 2 End Date:",    None,                              None, "MM/DD/YYYY"),
-        (17, "Sem 2 Weeks:",       '=IFERROR(ROUNDDOWN((C16-C15)/7,0),"")', None, "0"),
-    ]
-    for row, label, formula, default, fmt in sem2_rows:
+    for row, label, formula, default, fmt, hint in [
+        (15, "Sem 2 Start Date", None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (16, "Sem 2 End Date",   None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (17, "Sem 2 Weeks",      '=IFERROR(ROUNDDOWN((C16-C15)/7,0),"")', None, "0", "← auto"),
+    ]:
         ws.row_dimensions[row].height = 20
-        lbl(ws, row, 2, label)
+        lbl(ws, row, 2, label + ":", bg=WHITE, color=WARM_700)
         merge_inp(ws, row, 3, 6, formula=formula, default=default, fmt=fmt)
-    ws["C17"].fill = fill(FORMULA_BG)
-    ws.merge_cells("G15:J15"); ws["G15"].value = "← Enter as MM/DD/YYYY"
-    ws["G15"].font = fnt(size=9, italic=True, color="808080")
-    ws.merge_cells("G16:J16"); ws["G16"].value = "← Enter as MM/DD/YYYY"
-    ws["G16"].font = fnt(size=9, italic=True, color="808080")
-    ws.merge_cells("G17:J17"); ws["G17"].value = "← Auto-calculated"
-    ws["G17"].font = fnt(size=9, italic=True, color="808080")
+        ws.merge_cells(f"G{row}:J{row}")
+        sc(ws.cell(row, 7), value=hint, size=9, italic=True, color=WARM_500)
 
-    ws.row_dimensions[18].height = 8
+    spacer(ws, 18)
 
-    # Total weeks row
+    # Total weeks
     ws.row_dimensions[19].height = 20
-    lbl(ws, 19, 2, "Total School Weeks:", bg=LIGHT_BLUE, bold=True, color=NAVY)
-    merge_inp(ws, 19, 3, 6,
-              formula='=IFERROR(C12+C17,"")', fmt="0")
-    ws.cell(row=19, column=3).fill = fill(FORMULA_BG)
-    ws.cell(row=19, column=3).font = fnt(size=11, bold=True, color=NAVY)
-    ws.merge_cells("G19:J19"); ws["G19"].value = "← Sem 1 + Sem 2 combined"
-    ws["G19"].font = fnt(size=9, italic=True, color="808080")
+    lbl(ws, 19, 2, "Total School Weeks:", bg=ACCENT_PALE, color=ACCENT, bold=True)
+    merge_inp(ws, 19, 3, 6, formula='=IFERROR(C12+C17,"")', fmt="0")
+    ws.cell(19, 3).fill = fill(WARM_100)
+    ws.cell(19, 3).font = fnt(size=11, bold=True, color=WARM_700)
+    ws.merge_cells("G19:J19")
+    sc(ws.cell(19, 7), value="← Sem 1 + Sem 2", size=9, italic=True, color=WARM_500)
 
-    ws.row_dimensions[20].height = 8
+    spacer(ws, 20)
 
-    # ── Student roster ────────────────────────────────────────────────────────
-    sec_hdr(ws, 21, 1, 10, "STUDENT ROSTER", NAVY)
+    # Student roster header
+    sub_banner(ws, 21, 1, 10, "STUDENT ROSTER", bg=WARM_200, size=10, height=20)
 
-    # Column headers row 22
-    ws.row_dimensions[22].height = 32
-    col_spans = [(1,1),(2,3),(4,4),(5,5),(6,6),(7,8),(9,10)]
-    col_labels = ["#", "Student Name", "Date of Birth",
-                  "Class of\n(Grad Year)", "Grade\n(Auto)", "Curriculum Notes", ""]
-    for (c1, c2), lbl_text in zip(col_spans, col_labels):
+    # Col headers row 22
+    ws.row_dimensions[22].height = 30
+    hdr_def = [
+        (1, 1, "#"),
+        (2, 3, "Student Name"),
+        (4, 4, "Date of Birth"),
+        (5, 5, "Class of\n(Grad Year)"),
+        (6, 6, "Grade\n(Auto)"),
+        (7, 9, "Curriculum Notes"),
+        (10,10,""),
+    ]
+    for c1, c2, txt in hdr_def:
         if c1 != c2:
             ws.merge_cells(start_row=22, start_column=c1, end_row=22, end_column=c2)
-        c = ws.cell(row=22, column=c1)
-        sc(c, value=lbl_text, bold=True, size=10, fcolor=WHITE,
-           bg=MED_BLUE, h="center", v="center", wrap=True, b=bdr())
+        c = ws.cell(22, c1)
+        sc(c, value=txt, size=10, bold=True, color=WARM_700, bg=WARM_200,
+           h="center", v="center", wrap=True, b=box(color=WARM_300))
 
     for i in range(NUM_STUDENTS):
         row = 23 + i
-        ws.row_dimensions[row].height = 20
+        ws.row_dimensions[row].height = 22
+        bg = WHITE if i % 2 == 0 else OFF_WHITE
 
-        # # badge
-        c = ws.cell(row=row, column=1)
-        sc(c, value=i+1, bold=True, size=10, fcolor=WHITE,
-           bg=NAVY if i % 2 == 0 else MED_BLUE, h="center", b=bdr())
+        # Badge
+        c = ws.cell(row, 1)
+        sc(c, value=i+1, size=10, bold=True, color=WHITE, bg=ACCENT,
+           h="center", b=box(color=WARM_300))
 
-        # Name (cols 2-3)
+        # Name
         ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
-        inp(ws, row, 2)
+        inp(ws, row, 2, bg=bg)
 
-        # DOB col 4
-        inp(ws, row, 4, fmt="MM/DD/YYYY")
+        # DOB
+        inp(ws, row, 4, fmt="MM/DD/YYYY", bg=bg)
 
-        # Class of col 5
-        inp(ws, row, 5, fmt="0")
+        # Class of
+        inp(ws, row, 5, fmt="0", bg=bg)
 
-        # Grade formula col 6
-        c = ws.cell(row=row, column=6)
+        # Grade formula
+        c = ws.cell(row, 6)
         c.value = (
             f'=IF(OR(B{row}="",E{row}=""),"",LET(g,12-(E{row}-YEAR($C$16)),'
             f'IF(g=11,"11th",IF(g=12,"12th",IF(g=1,"1st",'
             f'IF(g=2,"2nd",IF(g=3,"3rd",g&"th")))))))'
         )
-        c.fill = fill(FORMULA_BG); c.border = bdr()
-        c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+        c.fill = fill(WARM_100); c.border = box(color=WARM_300)
+        c.font = fnt(size=10, bold=True, color=WARM_700)
+        c.alignment = aln(h="center")
 
-        # Notes (cols 7-10)
+        # Notes
         ws.merge_cells(start_row=row, start_column=7, end_row=row, end_column=10)
-        inp(ws, row, 7)
+        inp(ws, row, 7, bg=bg)
 
-    # ── Legend ────────────────────────────────────────────────────────────────
-    r = 23 + NUM_STUDENTS + 1
-    ws.row_dimensions[r].height = 6
-    r += 1
-
-    sec_hdr(ws, r, 1, 10, "LEGEND & INSTRUCTIONS", DARK_GRAY)
-    r += 1
-
-    for color, desc in [(INPUT_YELLOW, "User Input Cell — type your data here"),
-                        (FORMULA_BG,   "Formula Cell — auto-calculated, do not edit")]:
-        ws.row_dimensions[r].height = 18
-        ws.cell(row=r, column=2).fill = fill(color)
-        ws.cell(row=r, column=2).border = bdr()
-        ws.merge_cells(start_row=r, start_column=3, end_row=r, end_column=10)
-        sc(ws.cell(row=r, column=3), value=desc, size=10, fcolor=DARK_GRAY)
-        r += 1
-
-    instructions = [
-        "1.  Fill in School Year Settings: school name, year, days/week, and both semester dates.",
-        "2.  Semester 1 and Semester 2 weeks auto-calculate from the dates you enter.",
-        "3.  Enter each student's name, DOB, and graduation year — grade level auto-fills.",
-        "4.  Open each Student tab and fill in each subject's curriculum title and unit counts.",
-        "5.  Enter units separately for Semester 1 and Semester 2, or just fill in one semester.",
-        "6.  Pace (units/week, units/day, est. end date) auto-calculates for each semester.",
-        "7.  Use the Component Breakdown table for multi-volume curricula (e.g., 10 math books).",
-        "8.  Elective rows have an editable name — just type over 'Elective / Other 1' etc.",
+    # Instructions
+    spacer(ws, 33 + NUM_STUDENTS - 10)
+    r = 34
+    sub_banner(ws, r, 1, 10, "QUICK START GUIDE", bg=WARM_200, size=10, height=20)
+    steps = [
+        "1.  Set semester dates above (Sem 1 and Sem 2) — week counts auto-calculate.",
+        "2.  Enter each student's name, DOB, and graduation year — grade fills automatically.",
+        "3.  Go to the  Course Content  tab to assign curricula to each student.",
+        "4.  Each student's tab auto-populates pace calculations from Course Content.",
+        "5.  Yellow cells = type here.   Cream/tinted cells = formulas, leave them alone.",
     ]
-    r += 1
-    sec_hdr(ws, r, 1, 10, "HOW TO USE", "375623")
-    r += 1
-    for i, text in enumerate(instructions):
-        ws.row_dimensions[r].height = 18
-        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=10)
-        sc(ws.cell(row=r, column=2), value=text, size=10, fcolor=DARK_GRAY,
-           bg="F0FFF4" if i % 2 == 0 else WHITE)
-        r += 1
+    for i, step in enumerate(steps):
+        rr = r + 1 + i
+        ws.row_dimensions[rr].height = 18
+        ws.merge_cells(start_row=rr, start_column=1, end_row=rr, end_column=10)
+        sc(ws.cell(rr, 1), value=step, size=10, color=WARM_700,
+           bg=OFF_WHITE if i % 2 else WHITE)
+
+
+# ── COURSE CONTENT ────────────────────────────────────────────────────────────
+# Column layout (10 cols):
+# A(5): Student #   B(20): Student Name (formula)   C(28): Subject / Course
+# D(16): Custom Name (electives)   E(32): Curriculum / Book Title
+# F(12): Unit Type   G(11): Sem 1 Units   H(11): Sem 2 Units   I(30): Notes
+CC_WIDTHS = [5, 20, 28, 18, 34, 12, 11, 11, 32, 4]
+CC_COLS   = {"student_num":1,"student_name":2,"subject":3,"custom_name":4,
+             "curriculum":5,"unit_type":6,"s1_units":7,"s2_units":8,"notes":9}
+
+def build_course_content(wb):
+    ws = wb.create_sheet("Course Content", 1)
+    set_widths(ws, CC_WIDTHS)
+
+    title_bar(ws, 1, 1, 9, "Course Content  ·  Curriculum Planning Hub", height=40)
+    sub_banner(ws, 2, 1, 9,
+               "Enter each student's curricula here. "
+               "Use the  View Student  filter below to focus on one student at a time.",
+               bg=WARM_200, size=10, height=20)
+    spacer(ws, 3)
+
+    # View Student control (row 4–5)
+    ws.row_dimensions[4].height = 22
+    ws.merge_cells("A4:B4")
+    sc(ws.cell(4,1), value="View / Filter Student:", size=10, bold=True,
+       color=WARM_700, bg=ACCENT_PALE, h="right", b=box(color=ACCENT))
+
+    c_view = ws.cell(4, 3)
+    c_view.value = 1
+    c_view.fill  = fill(WHITE)
+    c_view.border= box(color=ACCENT)
+    c_view.font  = fnt(size=12, bold=True, color=ACCENT)
+    c_view.alignment = aln(h="center")
+    dv_view = DataValidation(type="whole", operator="between",
+                             formula1="1", formula2="10",
+                             showErrorMessage=True,
+                             errorTitle="Invalid", error="Enter 1–10")
+    ws.add_data_validation(dv_view)
+    dv_view.add(ws["C4"])
+
+    ws.merge_cells("D4:E4")
+    ws["D4"].value = (
+        f"=IFERROR(\"→  \"&INDEX({{\"Student 1\",\"Student 2\",\"Student 3\","
+        f"\"Student 4\",\"Student 5\",\"Student 6\",\"Student 7\","
+        f"\"Student 8\",\"Student 9\",\"Student 10\"}},C4),\"\")"
+    )
+    # simpler: just show name from GS
+    ws["D4"].value = (
+        '=IFERROR("→  "&CHOOSE(C4,'
+        + ",".join(f"'Getting Started'!B{23+i}" for i in range(10))
+        + '),"→")'
+    )
+    ws["D4"].fill      = fill(ACCENT_PALE)
+    ws["D4"].border    = box(color=ACCENT)
+    ws["D4"].font      = fnt(size=11, bold=True, color=WARM_700)
+    ws["D4"].alignment = aln(h="left", v="center")
+
+    ws.merge_cells("F4:I4")
+    sc(ws.cell(4,6),
+       value="Rows highlighted in pink = selected student's courses.",
+       size=9, italic=True, color=WARM_500, bg=ACCENT_PALE)
+
+    spacer(ws, 5)
+
+    # Hint row 6
+    ws.row_dimensions[6].height = 16
+    ws.merge_cells("A6:I6")
+    sc(ws.cell(6,1),
+       value="  Tip: Use the column filter arrows (▼) to show only one student's rows."
+             "  Yellow cells = type here.  All other cells are locked formulas.",
+       size=9, italic=True, color=WARM_500, bg=OFF_WHITE)
+
+    # Column headers row 7
+    ws.row_dimensions[CC_HDR_ROW].height = 28
+    col_hdrs = [
+        (1, "Std\n#"),
+        (2, "Student Name"),
+        (3, "Subject"),
+        (4, "Custom Name\n(Electives)"),
+        (5, "Curriculum / Book Title"),
+        (6, "Unit\nType"),
+        (7, "Semester 1\nUnits"),
+        (8, "Semester 2\nUnits"),
+        (9, "Notes"),
+    ]
+    for col, txt in col_hdrs:
+        c = ws.cell(CC_HDR_ROW, col)
+        sc(c, value=txt, size=9, bold=True, color=WARM_700, bg=WARM_200,
+           h="center", v="center", wrap=True, b=box(color=WARM_300))
+
+    # Data rows
+    subject_names = [s[0] for s in ALL_SUBJECTS]
+    dv_std = DataValidation(type="whole", operator="between",
+                            formula1="1", formula2="10")
+    ws.add_data_validation(dv_std)
+
+    for si in range(NUM_STUDENTS):
+        for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
+            row = CC_DATA_START + si * NUM_SUBJECTS + sj
+            ws.row_dimensions[row].height = 20
+            bg = WHITE if sj % 2 == 0 else OFF_WHITE
+
+            # Col A: Student number (pre-filled, editable)
+            c = ws.cell(row, 1)
+            c.value     = si + 1
+            c.fill      = fill(bg)
+            c.border    = box(color=WARM_300)
+            c.font      = fnt(size=10, bold=True, color=WARM_700)
+            c.alignment = aln(h="center")
+            dv_std.add(c)
+
+            # Col B: Student name (formula)
+            c = ws.cell(row, 2)
+            c.value     = f"='Getting Started'!B{23 + si}"
+            c.fill      = fill(WARM_100)
+            c.border    = box(color=WARM_300)
+            c.font      = fnt(size=10, color=WARM_500)
+            c.alignment = aln(h="left")
+
+            # Col C: Subject (pre-filled, editable)
+            c = ws.cell(row, 3)
+            c.value     = subj_name
+            c.fill      = fill(bg)
+            c.border    = box(color=WARM_300)
+            c.font      = fnt(size=10, bold=not editable, color=WARM_700)
+            c.alignment = aln(h="left")
+
+            # Col D: Custom name (electives only)
+            c = ws.cell(row, 4)
+            if editable:
+                c.fill   = fill(WHITE)
+                c.font   = fnt(size=10, color=WARM_900)
+            else:
+                c.fill   = fill(WARM_100)
+                c.font   = fnt(size=9, italic=True, color=WARM_500)
+                c.value  = "—"
+            c.border    = box(color=WARM_300)
+            c.alignment = aln(h="left")
+
+            # Col E: Curriculum title — user input
+            inp(ws, row, 5, bg=WHITE)
+
+            # Col F: Unit type — input
+            c = inp(ws, row, 6, value="pages", bg=WHITE)
+            c.alignment = aln(h="center")
+
+            # Col G: Sem 1 units — input
+            c = inp(ws, row, 7, bg=WHITE)
+            c.alignment = aln(h="center")
+
+            # Col H: Sem 2 units — input
+            c = inp(ws, row, 8, bg=WHITE)
+            c.alignment = aln(h="center")
+
+            # Col I: Notes — input
+            inp(ws, row, 9, bg=WHITE)
+
+    # Conditional formatting: highlight selected student's rows
+    last_data_row = CC_DATA_START + NUM_STUDENTS * NUM_SUBJECTS - 1
+    data_range    = f"A{CC_DATA_START}:I{last_data_row}"
+    ws.conditional_formatting.add(
+        data_range,
+        FormulaRule(
+            formula=[f"$A{CC_DATA_START}=$C$4"],
+            fill=PatternFill(start_color=ACCENT_PALE, end_color=ACCENT_PALE,
+                             fill_type="solid"),
+        )
+    )
+
+    # AutoFilter on header row
+    ws.auto_filter.ref = f"A{CC_HDR_ROW}:I{last_data_row}"
+
+    # Freeze panes: freeze rows 1-7 and col A
+    ws.freeze_panes = f"B{CC_DATA_START}"
 
     return ws
 
 
 # ── STUDENT SHEET ─────────────────────────────────────────────────────────────
-# Getting Started cell references (fixed)
-GS = "Getting Started"
-GS_S1_START  = f"'{GS}'!C10"
-GS_S1_END    = f"'{GS}'!C11"
-GS_S1_WEEKS  = f"'{GS}'!C12"
-GS_S2_START  = f"'{GS}'!C15"
-GS_S2_END    = f"'{GS}'!C16"
-GS_S2_WEEKS  = f"'{GS}'!C17"
-GS_DAYS_WEEK = f"'{GS}'!C7"
+# Col layout: A(28) B(14) C(14) D(14) E(18) F(4) G(14) H(14) I(14) J(18)
+ST_WIDTHS = [28, 14, 14, 14, 18, 4, 14, 14, 14, 18]
 
+def cc_row(student_idx, subject_idx):
+    """Course Content data row for 0-based student and subject indices."""
+    return CC_DATA_START + student_idx * NUM_SUBJECTS + subject_idx
+
+def cc_ref(student_idx, subject_idx, col_name):
+    r   = cc_row(student_idx, subject_idx)
+    col = CC_COLS[col_name]
+    return f"'Course Content'!{get_column_letter(col)}{r}"
 
 def build_student_sheet(wb, idx):
-    n       = idx + 1
-    gs_row  = 23 + idx  # student data row in Getting Started
+    n  = idx + 1
+    gs_name_row = 23 + idx
 
     ws = wb.create_sheet(f"Student {n}")
+    set_widths(ws, ST_WIDTHS)
 
-    # 10 columns; col A is wide (subject labels span it alone)
-    # Layout: A=label(22), B=S1units(14), C=S1/wk(14), D=S1/day(14), E=S1end(18),
-    #         F=divider(4), G=S2units(14), H=S2/wk(14), I=S2/day(14), J=S2end(18)
-    for i, w in enumerate(COL_WIDTHS_ST, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = w
+    # Banner
+    title_bar(ws, 1, 1, 10,
+              f"='Getting Started'!B{gs_name_row}",
+              height=40)
+    ws.cell(1, 1).value = (
+        f"=IF('Getting Started'!B{gs_name_row}=\"\","
+        f"\"Student {n}\","
+        f"'Getting Started'!B{gs_name_row})"
+    )
 
-    # ── Banner ────────────────────────────────────────────────────────────────
-    ws.merge_cells("A1:J1")
-    ws["A1"].value = f"=IF('{GS}'!B{gs_row}=\"\",\"Student {n}\",'{GS}'!B{gs_row})"
-    sc(ws["A1"], bold=True, size=20, fcolor=WHITE, bg=NAVY, h="center", v="center")
-    ws.row_dimensions[1].height = 44
-
+    ws.row_dimensions[2].height = 22
     ws.merge_cells("A2:J2")
     ws["A2"].value = (
-        f'=IFERROR("Grade: "&\'{GS}\'!F{gs_row}'
-        f'&"   ·   School Year: "&\'{GS}\'!C6",'
-        f'"")'
+        f"=IFERROR("
+        f"\"Grade: \"&'Getting Started'!F{gs_name_row}"
+        f"&\"   ·   School Year: \"&'Getting Started'!C6,\"\")"
     )
-    # cleaner:
-    ws["A2"].value = (
-        f"=IFERROR(\"Grade: \"&'{GS}'!F{gs_row}"
-        f"&\"   ·   School Year: \"&'{GS}'!C6,\"\")"
-    )
-    sc(ws["A2"], size=11, fcolor=WHITE, bg=MED_BLUE, h="center", v="center")
-    ws.row_dimensions[2].height = 22
+    sc(ws["A2"], size=11, bold=False, color=WHITE, bg=WARM_700, h="center", v="center")
 
-    ws.row_dimensions[3].height = 6
+    spacer(ws, 3)
 
-    # ── Semester overview strip ───────────────────────────────────────────────
-    sec_hdr(ws, 4, 1, 10, "SEMESTER OVERVIEW  (auto-populated from Getting Started)", NAVY)
-
-    ws.row_dimensions[5].height = 20
-
-    # S1 block (cols 1-5)
-    ws.merge_cells("A5:E5")
-    ws["A5"].value = (
-        f'=IFERROR("SEMESTER 1:  "'
-        f'&TEXT({GS_S1_START},"MMM D")&"  –  "'
+    # Semester overview strip
+    ws.row_dimensions[4].height = 22
+    ws.merge_cells("A4:E4")
+    ws["A4"].value = (
+        f'=IFERROR("SEMESTER 1   "'
+        f'&TEXT({GS_S1_START},"MMM D")&" – "'
         f'&TEXT({GS_S1_END},"MMM D, YYYY")'
-        f'&"   ("&{GS_S1_WEEKS}&" weeks)","SEMESTER 1")'
+        f'&"   ("&{GS_S1_WEEKS}&" wks)","SEMESTER 1")'
     )
-    sc(ws["A5"], bold=True, size=11, fcolor=WHITE, bg=SEM1_COLOR, h="center", b=bdr())
+    sc(ws["A4"], size=10, bold=True, color=WHITE, bg=S1_HDR, h="center", b=box(color=WARM_300))
 
-    # divider
-    ws.cell(row=5, column=6).fill = fill(DIVIDER_COL)
+    ws.cell(4, 6).fill = fill(OFF_WHITE)   # divider col
 
-    # S2 block (cols 7-10)
-    ws.merge_cells("G5:J5")
-    ws["G5"].value = (
-        f'=IFERROR("SEMESTER 2:  "'
-        f'&TEXT({GS_S2_START},"MMM D")&"  –  "'
+    ws.merge_cells("G4:J4")
+    ws["G4"].value = (
+        f'=IFERROR("SEMESTER 2   "'
+        f'&TEXT({GS_S2_START},"MMM D")&" – "'
         f'&TEXT({GS_S2_END},"MMM D, YYYY")'
-        f'&"   ("&{GS_S2_WEEKS}&" weeks)","SEMESTER 2")'
+        f'&"   ("&{GS_S2_WEEKS}&" wks)","SEMESTER 2")'
     )
-    sc(ws["G5"], bold=True, size=11, fcolor=WHITE, bg=SEM2_COLOR, h="center", b=bdr())
+    sc(ws["G4"], size=10, bold=True, color=WHITE, bg=S2_HDR, h="center", b=box(color=WARM_300))
 
-    # ── Column labels (row 6) ─────────────────────────────────────────────────
-    ws.row_dimensions[6].height = 28
-
-    col_hdrs = [
-        (1, 1, "Subject / Curriculum",      NAVY,      WHITE),
-        (2, 2, "Sem 1\nUnits",              SEM1_COLOR, WHITE),
-        (3, 3, "Sem 1\n/ Week",             SEM1_COLOR, WHITE),
-        (4, 4, "Sem 1\n/ Day",              SEM1_COLOR, WHITE),
-        (5, 5, "Sem 1\nEst. End",           SEM1_COLOR, WHITE),
-        (6, 6, "",                           DIVIDER_COL, DIVIDER_COL),
-        (7, 7, "Sem 2\nUnits",              SEM2_COLOR, WHITE),
-        (8, 8, "Sem 2\n/ Week",             SEM2_COLOR, WHITE),
-        (9, 9, "Sem 2\n/ Day",              SEM2_COLOR, WHITE),
-        (10,10,"Sem 2\nEst. End",           SEM2_COLOR, WHITE),
+    # Column sub-headers row 5
+    ws.row_dimensions[5].height = 24
+    sub_cols = [
+        (1, 1, "Subject  /  Curriculum",        WARM_200, WARM_700),
+        (2, 2, "Sem 1\nUnits",                  S1_LIGHT, S1_HDR),
+        (3, 3, "/ Week",                         S1_LIGHT, S1_HDR),
+        (4, 4, "/ Day",                          S1_LIGHT, S1_HDR),
+        (5, 5, "Est. End",                        S1_LIGHT, S1_HDR),
+        (6, 6, "",                                OFF_WHITE, OFF_WHITE),
+        (7, 7, "Sem 2\nUnits",                  S2_LIGHT, S2_HDR),
+        (8, 8, "/ Week",                         S2_LIGHT, S2_HDR),
+        (9, 9, "/ Day",                          S2_LIGHT, S2_HDR),
+        (10,10,"Est. End",                        S2_LIGHT, S2_HDR),
     ]
-    for c1, c2, text, bg, fc in col_hdrs:
+    for c1, c2, txt, bg, fc in sub_cols:
         if c1 != c2:
-            ws.merge_cells(start_row=6, start_column=c1, end_row=6, end_column=c2)
-        c = ws.cell(row=6, column=c1)
-        sc(c, value=text, bold=True, size=9, fcolor=fc, bg=bg,
-           h="center", v="center", wrap=True, b=bdr())
+            ws.merge_cells(start_row=5, start_column=c1, end_row=5, end_column=c2)
+        c = ws.cell(5, c1)
+        sc(c, value=txt, size=9, bold=True, color=fc, bg=bg,
+           h="center", v="center", wrap=True, b=box(color=WARM_300))
 
-    ws.row_dimensions[7].height = 6   # spacer before first subject
+    spacer(ws, 6)
 
-    # ── Subject sections ──────────────────────────────────────────────────────
-    current_row = 8
-    for subj_name, hdr_fill, row_fill, editable in ALL_SUBJECTS:
-        current_row = add_subject_section(
-            ws, current_row, subj_name, hdr_fill, row_fill, editable
-        )
-        ws.row_dimensions[current_row].height = 6   # spacer
-        current_row += 1
+    # Subject sections
+    row = 7
+    for j, (subj_name, editable) in enumerate(ALL_SUBJECTS):
+        row = add_subject_section(ws, row, subj_name, editable, idx, j)
+        spacer(ws, row); row += 1
 
+    ws.freeze_panes = "A7"
     return ws
 
 
-def add_subject_section(ws, r0, subj_name, hdr_fill, row_fill, editable_name):
+def add_subject_section(ws, r0, subj_name, editable, student_idx, subject_idx):
     """
-    Rows relative to r0:
-      r0+0  Subject header (editable name input if elective, else static label)
-      r0+1  Curriculum / book title  +  unit-type label
-      r0+2  Pace row: S1 units|/wk|/day|est.end  ||  S2 units|/wk|/day|est.end
-      r0+3  Component breakdown header
-      r0+4  Component column headers
-      r0+5..r0+10  6 component rows
-      r0+11 Notes
-    Returns first row after section.
+    r0+0  Subject header  (with curriculum title pulled from CC)
+    r0+1  Pace strip: S1 units | /wk | /day | est.end  |  S2 units | /wk | /day | est.end
+    r0+2  Component breakdown sub-header
+    r0+3  Component column headers
+    r0+4..r0+9  6 component rows
+    r0+10 Notes
+    Returns next row.
     """
-    # ── Row 0: subject header ─────────────────────────────────────────────────
+    # Short references to Course Content cells for this student+subject
+    cur_ref  = cc_ref(student_idx, subject_idx, "curriculum")
+    cust_ref = cc_ref(student_idx, subject_idx, "custom_name")
+    ut_ref   = cc_ref(student_idx, subject_idx, "unit_type")
+    s1_ref   = cc_ref(student_idx, subject_idx, "s1_units")
+    s2_ref   = cc_ref(student_idx, subject_idx, "s2_units")
+    notes_ref= cc_ref(student_idx, subject_idx, "notes")
+
+    # ── Row 0: subject header ──────────────────────────────────────────────
     ws.row_dimensions[r0].height = 24
 
-    if editable_name:
-        # Left part: static "ELECTIVE" badge (cols 1-2), editable name (cols 3-10)
-        ws.merge_cells(start_row=r0, start_column=1, end_row=r0, end_column=2)
-        c = ws.cell(row=r0, column=1)
-        sc(c, value="ELECTIVE / OTHER", bold=True, size=11, fcolor=WHITE,
-           bg=hdr_fill, h="center", v="center", b=bdr())
-        ws.merge_cells(start_row=r0, start_column=3, end_row=r0, end_column=10)
-        c = ws.cell(row=r0, column=3)
-        sc(c, value=subj_name, bold=True, size=12, fcolor=hdr_fill,
-           bg=INPUT_YELLOW, h="left", v="center", b=outer_bdr())
-        c.font = fnt(bold=True, size=12, color=hdr_fill)
+    if editable:
+        # Elective: show custom name if provided, else show default
+        ws.merge_cells(start_row=r0, start_column=1, end_row=r0, end_column=4)
+        c = ws.cell(r0, 1)
+        c.value = (
+            f'=IF({cust_ref}="","  {subj_name.upper()}",'
+            f'"  "&UPPER({cust_ref}))'
+        )
     else:
-        ws.merge_cells(start_row=r0, start_column=1, end_row=r0, end_column=10)
-        c = ws.cell(row=r0, column=1)
-        sc(c, value=f"  {subj_name.upper()}", bold=True, size=13, fcolor=WHITE,
-           bg=hdr_fill, h="left", v="center", b=outer_bdr())
+        ws.merge_cells(start_row=r0, start_column=1, end_row=r0, end_column=4)
+        c = ws.cell(r0, 1)
+        c.value = f"  {subj_name.upper()}"
 
-    # ── Row 1: curriculum title + unit type ───────────────────────────────────
+    c.font      = fnt(size=12, bold=True, color=WARM_700)
+    c.fill      = fill(LINEN)
+    c.border    = left_accent()
+    c.alignment = aln(h="left", v="center")
+
+    # Curriculum title (from CC) in cols 5-10
+    ws.merge_cells(start_row=r0, start_column=5, end_row=r0, end_column=10)
+    c = ws.cell(r0, 5)
+    c.value = (
+        f'=IFERROR(IF({cur_ref}="","← enter on Course Content tab",{cur_ref}),"")'
+    )
+    c.fill      = fill(WARM_100)
+    c.border    = box(color=WARM_300)
+    c.font      = fnt(size=11, bold=True, color=WARM_700)
+    c.alignment = aln(h="left", v="center")
+
+    # ── Row 1: pace strip ──────────────────────────────────────────────────
     r1 = r0 + 1
-    ws.row_dimensions[r1].height = 20
+    ws.row_dimensions[r1].height = 22
 
-    lbl(ws, r1, 1, "Curriculum / Title:", bg=row_fill)
-    ws.merge_cells(start_row=r1, start_column=2, end_row=r1, end_column=5)
-    inp(ws, r1, 2)   # user types curriculum name
+    s1u = f"B{r1}";  s1w = f"C{r1}"
+    s2u = f"G{r1}";  s2w = f"H{r1}"
 
-    # divider
-    ws.cell(row=r1, column=6).fill = fill(DIVIDER_COL)
-
-    lbl(ws, r1, 7, "Unit type:", bg=row_fill)
-    ws.merge_cells(start_row=r1, start_column=8, end_row=r1, end_column=10)
-    c = ws.cell(row=r1, column=8)
-    c.value = "pages"; c.fill = fill(INPUT_YELLOW)
-    c.border = bdr(); c.font = fnt(size=10)
-
-    # ── Row 2: pace strip ─────────────────────────────────────────────────────
-    r2 = r0 + 2
-    ws.row_dimensions[r2].height = 22
-
-    # S1 cells: col B=units input, C=/wk, D=/day, E=est end
-    # S2 cells: col G=units input, H=/wk, I=/day, J=est end
-
-    s1u = f"B{r2}"; s1w = f"C{r2}"; s1d = f"D{r2}"
-    s2u = f"G{r2}"; s2w = f"H{r2}"; s2d = f"I{r2}"
-
-    # S1 units – input
-    inp(ws, r2, 2, h="center")
+    # S1 units (formula from CC)
+    c = ws.cell(r1, 2)
+    c.value = f"={s1_ref}"; c.fill = fill(S1_LIGHT)
+    c.border = box(color=WARM_300)
+    c.font   = fnt(size=11, bold=True, color=S1_HDR)
+    c.alignment = aln(h="center")
 
     # S1 /week
-    c = ws.cell(row=r2, column=3)
-    c.value = f'=IFERROR(IF({s1u}="","",ROUND({s1u}/{GS_S1_WEEKS},1)),"")'
-    c.fill = fill(SEM1_LIGHT); c.border = bdr()
-    c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+    formula_cell(ws, r1, 3,
+        f'=IFERROR(IF({s1u}="","",ROUND({s1u}/{GS_S1_WEEKS},1)),"")',
+        bold=True)
+    ws.cell(r1,3).fill = fill(S1_LIGHT)
+    ws.cell(r1,3).font = fnt(size=10, bold=True, color=S1_HDR)
 
     # S1 /day
-    c = ws.cell(row=r2, column=4)
-    c.value = f'=IFERROR(IF({s1w}="","",ROUND({s1w}/{GS_DAYS_WEEK},1)),"")'
-    c.fill = fill(SEM1_LIGHT); c.border = bdr()
-    c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+    formula_cell(ws, r1, 4,
+        f'=IFERROR(IF({s1w}="","",ROUND({s1w}/{GS_DAYS},1)),"")')
+    ws.cell(r1,4).fill = fill(S1_LIGHT)
+    ws.cell(r1,4).font = fnt(size=10, bold=True, color=S1_HDR)
 
     # S1 est end
-    c = ws.cell(row=r2, column=5)
-    c.value = (
-        f'=IFERROR(IF({s1u}="","",TEXT('
-        f'{GS_S1_START}+({s1u}/{s1d}),"MMM D, YYYY")),"")'
-    )
-    c.fill = fill(SEM1_LIGHT); c.border = bdr()
-    c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+    formula_cell(ws, r1, 5,
+        f'=IFERROR(IF({s1u}="","",TEXT({GS_S1_START}+({s1u}/D{r1}),"MMM D, YYYY")),"")')
+    ws.cell(r1,5).fill = fill(S1_LIGHT)
+    ws.cell(r1,5).font = fnt(size=9, bold=False, color=S1_HDR)
 
-    # divider col F
-    ws.cell(row=r2, column=6).fill = fill(DIVIDER_COL)
+    # Divider col F
+    ws.cell(r1, 6).fill = fill(OFF_WHITE)
 
-    # S2 units – input
-    inp(ws, r2, 7, h="center")
+    # S2 units
+    c = ws.cell(r1, 7)
+    c.value = f"={s2_ref}"; c.fill = fill(S2_LIGHT)
+    c.border = box(color=WARM_300)
+    c.font   = fnt(size=11, bold=True, color=S2_HDR)
+    c.alignment = aln(h="center")
 
     # S2 /week
-    c = ws.cell(row=r2, column=8)
-    c.value = f'=IFERROR(IF({s2u}="","",ROUND({s2u}/{GS_S2_WEEKS},1)),"")'
-    c.fill = fill(SEM2_LIGHT); c.border = bdr()
-    c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+    formula_cell(ws, r1, 8,
+        f'=IFERROR(IF({s2u}="","",ROUND({s2u}/{GS_S2_WEEKS},1)),"")')
+    ws.cell(r1,8).fill = fill(S2_LIGHT)
+    ws.cell(r1,8).font = fnt(size=10, bold=True, color=S2_HDR)
 
     # S2 /day
-    c = ws.cell(row=r2, column=9)
-    c.value = f'=IFERROR(IF({s2w}="","",ROUND({s2w}/{GS_DAYS_WEEK},1)),"")'
-    c.fill = fill(SEM2_LIGHT); c.border = bdr()
-    c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+    formula_cell(ws, r1, 9,
+        f'=IFERROR(IF({s2w}="","",ROUND({s2w}/{GS_DAYS},1)),"")')
+    ws.cell(r1,9).fill = fill(S2_LIGHT)
+    ws.cell(r1,9).font = fnt(size=10, bold=True, color=S2_HDR)
 
     # S2 est end
-    c = ws.cell(row=r2, column=10)
-    c.value = (
-        f'=IFERROR(IF({s2u}="","",TEXT('
-        f'{GS_S2_START}+({s2u}/{s2d}),"MMM D, YYYY")),"")'
-    )
-    c.fill = fill(SEM2_LIGHT); c.border = bdr()
-    c.font = fnt(size=10, bold=True); c.alignment = aln(h="center")
+    formula_cell(ws, r1, 10,
+        f'=IFERROR(IF({s2u}="","",TEXT({GS_S2_START}+({s2u}/I{r1}),"MMM D, YYYY")),"")')
+    ws.cell(r1,10).fill = fill(S2_LIGHT)
+    ws.cell(r1,10).font = fnt(size=9, bold=False, color=S2_HDR)
 
-    # ── Row 3: component breakdown sub-header ─────────────────────────────────
+    # ── Row 2: component sub-header ────────────────────────────────────────
+    r2 = r0 + 2
+    ws.row_dimensions[r2].height = 16
+    ws.merge_cells(start_row=r2, start_column=1, end_row=r2, end_column=10)
+    c = ws.cell(r2, 1)
+    sc(c, value="  Component Breakdown  "
+                "(optional — use for multi-volume curricula)",
+       size=9, italic=True, color=WARM_500, bg=OFF_WHITE,
+       b=bottom_only(WARM_300))
+
+    # ── Row 3: component col headers ──────────────────────────────────────
     r3 = r0 + 3
-    ws.row_dimensions[r3].height = 16
-    ws.merge_cells(start_row=r3, start_column=1, end_row=r3, end_column=10)
-    sc(ws.cell(row=r3, column=1),
-       value="  Optional: Component / Volume Breakdown  "
-             "(fill in if the curriculum has multiple books or parts)",
-       size=9, italic=True, fcolor=WHITE, bg=DARK_GRAY, h="left", b=bdr())
-
-    # ── Row 4: component column headers ──────────────────────────────────────
-    r4 = r0 + 4
-    ws.row_dimensions[r4].height = 28
-
-    comp_cols = [
+    ws.row_dimensions[r3].height = 22
+    comp_hdrs = [
         (1, 1, "#"),
-        (2, 4, "Component / Book Title"),
-        (5, 5, "Units in\nComponent"),
-        (6, 6, "Cumul.\nUnits"),
-        (7, 7, "Start\nWeek"),
-        (8, 8, "End\nWeek"),
-        (9, 9, "Start\nDate"),
-        (10,10,"End\nDate"),
+        (2, 5, "Book / Component Title"),
+        (6, 6, "Units"),
+        (7, 7, "Cumul."),
+        (8, 8, "Start\nWeek"),
+        (9, 9, "End\nWeek"),
+        (10,10,"Est. Dates"),
     ]
-    for c1, c2, hdr_text in comp_cols:
+    for c1, c2, txt in comp_hdrs:
         if c1 != c2:
-            ws.merge_cells(start_row=r4, start_column=c1, end_row=r4, end_column=c2)
-        c = ws.cell(row=r4, column=c1)
-        sc(c, value=hdr_text, bold=True, size=9, fcolor=WHITE,
-           bg=DARK_GRAY, h="center", v="center", wrap=True, b=bdr())
+            ws.merge_cells(start_row=r3, start_column=c1, end_row=r3, end_column=c2)
+        c = ws.cell(r3, c1)
+        sc(c, value=txt, size=9, bold=True, color=WARM_700, bg=WARM_200,
+           h="center", v="center", wrap=True, b=box(color=WARM_300))
 
-    # ── Rows 5-10: 6 component rows ───────────────────────────────────────────
-    comp_start = r0 + 5
-    # units/week for this subject's S1 and S2 (we'll use full-year combined pace for components)
-    # For component scheduling we use S1+S2 total pace. Use a combined row.
-    # Actually let's key components off total units across both semesters.
-    # total_subj_units = B{r2} + G{r2}
-    # combined /week = (S1units + S2units) / total_weeks
-    total_weeks_ref = f"(IFERROR({GS_S1_WEEKS},0)+IFERROR({GS_S2_WEEKS},0))"
+    # ── Rows 4-9: 6 component rows ─────────────────────────────────────────
+    comp_start = r0 + 4
+
+    # combined units/week for component scheduling
+    total_wks = f"(IFERROR({GS_S1_WEEKS},0)+IFERROR({GS_S2_WEEKS},0))"
+    s1u_ref   = f"B{r1}";  s2u_ref = f"G{r1}"
+    upw_expr  = f"(IFERROR({s1u_ref},0)+IFERROR({s2u_ref},0))/{total_wks}"
 
     for ci in range(6):
         r = comp_start + ci
         ws.row_dimensions[r].height = 18
-        alt = INPUT_YELLOW if ci % 2 == 0 else "FAFAD2"
+        bg = WHITE if ci % 2 == 0 else OFF_WHITE
 
-        # # col
-        c = ws.cell(row=r, column=1)
-        sc(c, value=ci+1, bold=True, size=10, fcolor=WHITE,
-           bg=NAVY if ci % 2 == 0 else MED_BLUE, h="center", b=bdr())
+        # #
+        c = ws.cell(r, 1)
+        sc(c, value=ci+1, size=10, bold=True, color=WARM_700,
+           bg=WARM_200, h="center", b=box(color=WARM_300))
 
-        # title cols 2-4
-        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=4)
-        c = ws.cell(row=r, column=2)
-        c.fill = fill(alt); c.border = bdr(); c.font = fnt(size=10)
+        # Title cols 2-5
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=5)
+        inp(ws, r, 2, bg=bg)
 
-        # units col 5
-        c = ws.cell(row=r, column=5)
-        c.fill = fill(alt); c.border = bdr()
-        c.font = fnt(size=10); c.alignment = aln(h="center")
+        # Units col 6
+        inp(ws, r, 6, bg=bg)
+        ws.cell(r, 6).alignment = aln(h="center")
 
-        # cumulative col 6
-        c = ws.cell(row=r, column=6)
-        c.value = f'=IFERROR(SUM(E{comp_start}:E{r}),"")'
-        c.fill = fill(FORMULA_BG); c.border = bdr()
-        c.font = fnt(size=10); c.alignment = aln(h="center")
+        # Cumulative col 7
+        formula_cell(ws, r, 7,
+            f'=IFERROR(SUM(F{comp_start}:F{r}),"")')
 
-        # combined subj /week for component scheduling
-        s1u_ref = f"B{r2}"; s2u_ref = f"G{r2}"
-        upw_expr = (
-            f'(IFERROR({s1u_ref},0)+IFERROR({s2u_ref},0))/{total_weeks_ref}'
-        )
-
-        # start week col 7
-        c = ws.cell(row=r, column=7)
+        # Start week col 8
         if ci == 0:
-            c.value = f'=IF(E{r}="","",1)'
+            sw_f = f'=IF(F{r}="","",1)'
         else:
-            prev_cum = f"F{r-1}"
-            c.value = f'=IFERROR(IF(E{r}="","",FLOOR({prev_cum}/({upw_expr}),1)+1),"")'
-        c.fill = fill(FORMULA_BG); c.border = bdr()
-        c.font = fnt(size=10); c.alignment = aln(h="center")
+            sw_f = f'=IFERROR(IF(F{r}="","",FLOOR(G{r-1}/({upw_expr}),1)+1),"")'
+        formula_cell(ws, r, 8, sw_f)
 
-        # end week col 8
-        cum = f"F{r}"
-        c = ws.cell(row=r, column=8)
-        c.value = f'=IFERROR(IF(E{r}="","",CEILING({cum}/({upw_expr}),1)),"")'
-        c.fill = fill(FORMULA_BG); c.border = bdr()
-        c.font = fnt(size=10); c.alignment = aln(h="center")
+        # End week col 9
+        formula_cell(ws, r, 9,
+            f'=IFERROR(IF(F{r}="","",CEILING(G{r}/({upw_expr}),1)),"")')
 
-        # start date col 9
-        sw = f"G{r}"
-        c = ws.cell(row=r, column=9)
-        c.value = (
-            f'=IFERROR(IF(E{r}="","",TEXT({GS_S1_START}+({sw}-1)*7,"MMM D")),"")'
-        )
-        c.fill = fill(FORMULA_BG); c.border = bdr()
-        c.font = fnt(size=10); c.alignment = aln(h="center")
+        # Est dates col 10 (start date – end date)
+        formula_cell(ws, r, 10,
+            f'=IFERROR(IF(F{r}="","",'
+            f'TEXT({GS_S1_START}+(H{r}-1)*7,"MMM D")'
+            f'&" – "'
+            f'&TEXT({GS_S1_START}+I{r}*7,"MMM D")),"")')
+        ws.cell(r,10).font = fnt(size=9, bold=False, color=WARM_700)
 
-        # end date col 10
-        ew = f"H{r}"
-        c = ws.cell(row=r, column=10)
-        c.value = (
-            f'=IFERROR(IF(E{r}="","",TEXT({GS_S1_START}+({ew})*7,"MMM D")),"")'
-        )
-        c.fill = fill(FORMULA_BG); c.border = bdr()
-        c.font = fnt(size=10); c.alignment = aln(h="center")
-
-    # ── Notes row ─────────────────────────────────────────────────────────────
+    # ── Notes row ──────────────────────────────────────────────────────────
     r_notes = comp_start + 6
     ws.row_dimensions[r_notes].height = 20
-    lbl(ws, r_notes, 1, "Notes:", bg=row_fill, size=10)
-    ws.merge_cells(start_row=r_notes, start_column=2,
-                   end_row=r_notes, end_column=10)
-    c = ws.cell(row=r_notes, column=2)
-    c.fill = fill(INPUT_YELLOW); c.border = bdr()
-    c.font = fnt(size=10); c.alignment = aln(h="left", v="center")
+    ws.merge_cells(start_row=r_notes, start_column=1, end_row=r_notes, end_column=10)
+    c = ws.cell(r_notes, 1)
+    # Notes pulled from Course Content
+    c.value = (
+        f'=IFERROR(IF({notes_ref}="","",{notes_ref}),"")'
+    )
+    c.fill      = fill(WARM_100)
+    c.border    = bottom_only(WARM_300)
+    c.font      = fnt(size=9, italic=True, color=WARM_500)
+    c.alignment = aln(h="left", v="center")
 
-    return r_notes + 1   # next available row
+    return r_notes + 1
 
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
@@ -655,20 +830,23 @@ def main():
     wb.remove(wb.active)
 
     build_getting_started(wb)
+    build_course_content(wb)
 
     tab_colors = [
-        "1F3864","2E74B5","5B2C6F","922B21","784212",
-        "7D6608","0E6655","6E2F0E","1E8449","76448A",
+        "C48B8B","A87C6B","7A6E5F","6B8A6B","5C8A8A",
+        "8A7A5C","8A5C5C","6B7A8A","8A6B8A","7A8A6B",
     ]
     for i in range(NUM_STUDENTS):
         ws = build_student_sheet(wb, i)
-        ws.sheet_properties.tabColor = tab_colors[i % len(tab_colors)]
+        ws.sheet_properties.tabColor = tab_colors[i]
 
-    wb["Getting Started"].sheet_properties.tabColor = "1F3864"
+    wb["Getting Started"].sheet_properties.tabColor  = ACCENT
+    wb["Course Content"].sheet_properties.tabColor   = "A08878"
 
     out = "/home/user/curriculum-planning/Homeschool_Curriculum_Planner.xlsx"
     wb.save(out)
-    print(f"Saved: {out}")
+    print(f"Saved → {out}")
+    print(f"Sheets: {wb.sheetnames}")
 
 
 if __name__ == "__main__":
