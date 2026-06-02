@@ -437,7 +437,7 @@ def _cc_col_headers(ws, row):
 
 
 def _cc_subject_row(ws, row, subj_name, editable=False, outline_level=0,
-                    hidden=False):
+                    hidden=False, dv_unit_type=None):
     """Draw one subject data row."""
     ws.row_dimensions[row].height   = 20
     ws.row_dimensions[row].outlineLevel = outline_level
@@ -475,6 +475,10 @@ def _cc_subject_row(ws, row, subj_name, editable=False, outline_level=0,
     c9  = inp(ws, row, 9, bg=alt);  c9.alignment  = aln(h="center")
     c10 = inp(ws, row,10, bg=alt);  c10.alignment = aln(h="center")
 
+    if dv_unit_type:
+        dv_unit_type.add(ws.cell(row, 3))
+        dv_unit_type.add(ws.cell(row, 8))
+
 
 def build_course_content(wb):
     ws = wb.create_sheet("Course Content", 1)
@@ -504,6 +508,15 @@ def build_course_content(wb):
 
     spacer(ws, 7, height=6)  # tiny spacer before Group section, reused as row 7
 
+    # Unit type dropdown — shared across all subject rows
+    dv_unit = DataValidation(
+        type="list",
+        formula1='"pages,lessons,chapters,units,assignments,projects"',
+        showDropDown=False,
+        showErrorMessage=False,
+    )
+    ws.add_data_validation(dv_unit)
+
     # ── Group Studies section ─────────────────────────────────────────────────
     ws.row_dimensions[CC_GROUP_HDR_ROW].height = 26
     ws.merge_cells(f"A{CC_GROUP_HDR_ROW}:J{CC_GROUP_HDR_ROW}")
@@ -514,7 +527,7 @@ def build_course_content(wb):
 
     for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
         _cc_subject_row(ws, CC_GROUP_DATA_START + sj, subj_name, editable,
-                        outline_level=0)
+                        outline_level=0, dv_unit_type=dv_unit)
 
     spacer(ws, CC_GROUP_DATA_START + NUM_SUBJECTS)   # row 22
 
@@ -544,7 +557,8 @@ def build_course_content(wb):
         collapsed = (si > 0)
         for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
             _cc_subject_row(ws, cc_student_data_row(si, sj), subj_name,
-                            editable, outline_level=1, hidden=collapsed)
+                            editable, outline_level=1, hidden=collapsed,
+                            dv_unit_type=dv_unit)
 
         # Spacer inside group (also collapsed with student)
         ws.row_dimensions[spc_row].height = 6
