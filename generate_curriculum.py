@@ -865,14 +865,6 @@ def main():
     build_getting_started(wb)
     build_course_content(wb)
 
-    tab_colors = [
-        "C48B8B","A87C6B","7A6E5F","6B8A6B","5C8A8A",
-        "8A7A5C","8A5C5C","6B7A8A","8A6B8A","7A8A6B",
-    ]
-    for i in range(NUM_STUDENTS):
-        ws = build_student_sheet(wb, i)
-        ws.sheet_properties.tabColor = tab_colors[i]
-
     wb["Getting Started"].sheet_properties.tabColor  = ACCENT
     wb["Course Content"].sheet_properties.tabColor   = "A08878"
 
