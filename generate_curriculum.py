@@ -184,14 +184,17 @@ def spacer(ws, row, height=8):
 # GS cell refs used elsewhere
 GS_S1_START  = "'Getting Started'!C10"
 GS_S1_END    = "'Getting Started'!C11"
-GS_S1_WEEKS  = "'Getting Started'!C12"
-GS_S2_START  = "'Getting Started'!C15"
-GS_S2_END    = "'Getting Started'!C16"
-GS_S2_WEEKS  = "'Getting Started'!C17"
+# C12 = S1 break start, C13 = S1 break end, C14 = S1 break weeks
+GS_S1_WEEKS  = "'Getting Started'!C15"   # school weeks after break
+GS_S2_START  = "'Getting Started'!C18"
+GS_S2_END    = "'Getting Started'!C19"
+# C20 = S2 break start, C21 = S2 break end, C22 = S2 break weeks
+GS_S2_WEEKS  = "'Getting Started'!C23"   # school weeks after break
 GS_DAYS      = "'Getting Started'!C7"
+GS_STUDENT_ROW = 29   # first student data row in Getting Started (1-based)
 
 def gs_student_name(i):   # i = 1-based
-    return f"'Getting Started'!B{22 + i}"
+    return f"'Getting Started'!B{GS_STUDENT_ROW - 1 + i}"
 
 def build_getting_started(wb):
     ws = wb.create_sheet("Getting Started", 0)
@@ -218,85 +221,93 @@ def build_getting_started(wb):
 
     spacer(ws, 8)
 
-    # Semester 1
-    sub_banner(ws, 9, 2, 10, "Semester 1  ·  September – December",
-               bg=fill(S1_LIGHT).fgColor.rgb if False else S1_LIGHT,
-               fc=S1_HDR, size=10, height=20)
-    # fix: bg is a hex string
-    ws.cell(9, 2).fill = fill(S1_LIGHT)
-    ws.cell(9, 2).font = fnt(size=10, bold=True, color=S1_HDR)
+    # ── Semester 1 ────────────────────────────────────────────────────────────
+    ws.merge_cells("B9:J9")
+    sc(ws.cell(9, 2), value="Semester 1  ·  September – December",
+       size=10, bold=True, color=S1_HDR, bg=S1_LIGHT, h="center")
+    ws.row_dimensions[9].height = 20
 
-    for row, label, formula, default, fmt, hint in [
-        (10, "Sem 1 Start Date", None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
-        (11, "Sem 1 End Date",   None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
-        (12, "Sem 1 Weeks",      '=IFERROR(ROUNDDOWN((C11-C10)/7,0),"")', None, "0", "← auto"),
-    ]:
+    # Sem 1 date inputs (rows 10–11) and break inputs (rows 12–13)
+    s1_rows = [
+        (10, "Sem 1 Start Date",           None,  "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (11, "Sem 1 End Date",             None,  "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (12, "Sem 1 Break Start",          None,  "MM/DD/YYYY", "← optional  (e.g. Thanksgiving)"),
+        (13, "Sem 1 Break End",            None,  "MM/DD/YYYY", "← optional"),
+        (14, "Sem 1 Break Weeks",
+             '=IFERROR(IF(OR(C12="",C13=""),0,ROUNDDOWN((C13-C12)/7,0)),0)', "0", "← auto"),
+        (15, "Sem 1 School Weeks",
+             '=IFERROR(ROUNDDOWN((C11-C10)/7,0)-C14,"")', "0", "← auto  (total minus break)"),
+    ]
+    for row, label, formula, fmt, hint in s1_rows:
         ws.row_dimensions[row].height = 20
-        lbl(ws, row, 2, label + ":", bg=WHITE, color=WARM_700)
-        merge_inp(ws, row, 3, 6, formula=formula, default=default, fmt=fmt)
+        is_break = "Break" in label and "Weeks" not in label
+        lbl(ws, row, 2, label + ":",
+            bg=WHITE, color=WARM_500 if is_break else WARM_700)
+        merge_inp(ws, row, 3, 6, formula=formula, fmt=fmt)
         ws.merge_cells(f"G{row}:J{row}")
         sc(ws.cell(row, 7), value=hint, size=9, italic=True, color=WARM_500)
 
-    # Explicit date-picker validation for Sem 1 date cells
-    # DataValidation(type="date") is what tells Excel to show the calendar
-    # picker popup — number format alone only guarantees display formatting.
-    dv_date_s1 = DataValidation(
-        type="date", operator="between",
-        formula1="DATE(2000,1,1)", formula2="DATE(2099,12,31)",
-        showErrorMessage=False, showInputMessage=False,
-    )
-    ws.add_data_validation(dv_date_s1)
-    dv_date_s1.add("C10:F10")
-    dv_date_s1.add("C11:F11")
+    # Date picker validation — Sem 1 semester dates + break dates
+    dv_s1 = DataValidation(type="date", operator="between",
+                           formula1="DATE(2000,1,1)", formula2="DATE(2099,12,31)",
+                           showErrorMessage=False, showInputMessage=False)
+    ws.add_data_validation(dv_s1)
+    for r in (10, 11, 12, 13):
+        dv_s1.add(f"C{r}:F{r}")
 
-    spacer(ws, 13)
+    spacer(ws, 16)
 
-    # Semester 2
-    ws.merge_cells("B14:J14")
-    c = ws.cell(14, 2)
-    sc(c, value="Semester 2  ·  January – May", size=10, bold=True,
-       color=S2_HDR, bg=S2_LIGHT, h="center")
-    ws.row_dimensions[14].height = 20
+    # ── Semester 2 ────────────────────────────────────────────────────────────
+    ws.merge_cells("B17:J17")
+    sc(ws.cell(17, 2), value="Semester 2  ·  January – May",
+       size=10, bold=True, color=S2_HDR, bg=S2_LIGHT, h="center")
+    ws.row_dimensions[17].height = 20
 
-    for row, label, formula, default, fmt, hint in [
-        (15, "Sem 2 Start Date", None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
-        (16, "Sem 2 End Date",   None, None, "MM/DD/YYYY", "← MM/DD/YYYY"),
-        (17, "Sem 2 Weeks",      '=IFERROR(ROUNDDOWN((C16-C15)/7,0),"")', None, "0", "← auto"),
-    ]:
+    s2_rows = [
+        (18, "Sem 2 Start Date",           None,  "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (19, "Sem 2 End Date",             None,  "MM/DD/YYYY", "← MM/DD/YYYY"),
+        (20, "Sem 2 Break Start",          None,  "MM/DD/YYYY", "← optional  (e.g. Spring / Easter)"),
+        (21, "Sem 2 Break End",            None,  "MM/DD/YYYY", "← optional"),
+        (22, "Sem 2 Break Weeks",
+             '=IFERROR(IF(OR(C20="",C21=""),0,ROUNDDOWN((C21-C20)/7,0)),0)', "0", "← auto"),
+        (23, "Sem 2 School Weeks",
+             '=IFERROR(ROUNDDOWN((C19-C18)/7,0)-C22,"")', "0", "← auto  (total minus break)"),
+    ]
+    for row, label, formula, fmt, hint in s2_rows:
         ws.row_dimensions[row].height = 20
-        lbl(ws, row, 2, label + ":", bg=WHITE, color=WARM_700)
-        merge_inp(ws, row, 3, 6, formula=formula, default=default, fmt=fmt)
+        is_break = "Break" in label and "Weeks" not in label
+        lbl(ws, row, 2, label + ":",
+            bg=WHITE, color=WARM_500 if is_break else WARM_700)
+        merge_inp(ws, row, 3, 6, formula=formula, fmt=fmt)
         ws.merge_cells(f"G{row}:J{row}")
         sc(ws.cell(row, 7), value=hint, size=9, italic=True, color=WARM_500)
 
-    # Same explicit date-picker validation for Sem 2
-    dv_date_s2 = DataValidation(
-        type="date", operator="between",
-        formula1="DATE(2000,1,1)", formula2="DATE(2099,12,31)",
-        showErrorMessage=False, showInputMessage=False,
-    )
-    ws.add_data_validation(dv_date_s2)
-    dv_date_s2.add("C15:F15")
-    dv_date_s2.add("C16:F16")
+    dv_s2 = DataValidation(type="date", operator="between",
+                           formula1="DATE(2000,1,1)", formula2="DATE(2099,12,31)",
+                           showErrorMessage=False, showInputMessage=False)
+    ws.add_data_validation(dv_s2)
+    for r in (18, 19, 20, 21):
+        dv_s2.add(f"C{r}:F{r}")
 
-    spacer(ws, 18)
+    spacer(ws, 24)
 
-    # Total weeks
-    ws.row_dimensions[19].height = 20
-    lbl(ws, 19, 2, "Total School Weeks:", bg=ACCENT_PALE, color=ACCENT, bold=True)
-    merge_inp(ws, 19, 3, 6, formula='=IFERROR(C12+C17,"")', fmt="0")
-    ws.cell(19, 3).fill = fill(WARM_100)
-    ws.cell(19, 3).font = fnt(size=11, bold=True, color=WARM_700)
-    ws.merge_cells("G19:J19")
-    sc(ws.cell(19, 7), value="← Sem 1 + Sem 2", size=9, italic=True, color=WARM_500)
+    # ── Total weeks ───────────────────────────────────────────────────────────
+    ws.row_dimensions[25].height = 20
+    lbl(ws, 25, 2, "Total School Weeks:", bg=ACCENT_PALE, color=ACCENT, bold=True)
+    merge_inp(ws, 25, 3, 6, formula='=IFERROR(C15+C23,"")', fmt="0")
+    ws.cell(25, 3).fill = fill(WARM_100)
+    ws.cell(25, 3).font = fnt(size=11, bold=True, color=WARM_700)
+    ws.merge_cells("G25:J25")
+    sc(ws.cell(25, 7), value="← Sem 1 + Sem 2 (breaks excluded)",
+       size=9, italic=True, color=WARM_500)
 
-    spacer(ws, 20)
+    spacer(ws, 26)
 
-    # Student roster header
-    sub_banner(ws, 21, 1, 10, "STUDENT ROSTER", bg=WARM_200, size=10, height=20)
+    # ── Student roster ────────────────────────────────────────────────────────
+    sub_banner(ws, 27, 1, 10, "STUDENT ROSTER", bg=WARM_200, size=10, height=20)
 
-    # Col headers row 22
-    ws.row_dimensions[22].height = 30
+    # Col headers row 28
+    ws.row_dimensions[28].height = 30
     hdr_def = [
         (1, 1, "#"),
         (2, 3, "Student Name"),
@@ -308,13 +319,13 @@ def build_getting_started(wb):
     ]
     for c1, c2, txt in hdr_def:
         if c1 != c2:
-            ws.merge_cells(start_row=22, start_column=c1, end_row=22, end_column=c2)
-        c = ws.cell(22, c1)
+            ws.merge_cells(start_row=28, start_column=c1, end_row=28, end_column=c2)
+        c = ws.cell(28, c1)
         sc(c, value=txt, size=10, bold=True, color=WARM_700, bg=WARM_200,
            h="center", v="center", wrap=True, b=box(color=WARM_300))
 
     for i in range(NUM_STUDENTS):
-        row = 23 + i
+        row = GS_STUDENT_ROW + i
         ws.row_dimensions[row].height = 22
         bg = WHITE if i % 2 == 0 else OFF_WHITE
 
@@ -336,7 +347,7 @@ def build_getting_started(wb):
         # Grade formula
         c = ws.cell(row, 6)
         c.value = (
-            f'=IF(OR(B{row}="",E{row}=""),"",LET(g,12-(E{row}-YEAR($C$16)),'
+            f'=IF(OR(B{row}="",E{row}=""),"",LET(g,12-(E{row}-YEAR($C$19)),'
             f'IF(g=11,"11th",IF(g=12,"12th",IF(g=1,"1st",'
             f'IF(g=2,"2nd",IF(g=3,"3rd",g&"th")))))))'
         )
@@ -350,7 +361,7 @@ def build_getting_started(wb):
 
     # Instructions
     spacer(ws, 33 + NUM_STUDENTS - 10)
-    r = 34
+    r = 40
     sub_banner(ws, r, 1, 10, "QUICK START GUIDE", bg=WARM_200, size=10, height=20)
     steps = [
         "1.  Set semester dates above (Sem 1 and Sem 2) — week counts auto-calculate.",
@@ -415,7 +426,7 @@ def build_course_content(wb):
     # simpler: just show name from GS
     ws["D4"].value = (
         '=IFERROR("→  "&CHOOSE(C4,'
-        + ",".join(f"'Getting Started'!B{23+i}" for i in range(10))
+        + ",".join(f"'Getting Started'!B{GS_STUDENT_ROW+i}" for i in range(10))
         + '),"→")'
     )
     ws["D4"].fill      = fill(ACCENT_PALE)
@@ -479,7 +490,7 @@ def build_course_content(wb):
 
             # Col B: Student name (formula)
             c = ws.cell(row, 2)
-            c.value     = f"='Getting Started'!B{23 + si}"
+            c.value     = f"='Getting Started'!B{GS_STUDENT_ROW + si}"
             c.fill      = fill(WARM_100)
             c.border    = box(color=WARM_300)
             c.font      = fnt(size=10, color=WARM_500)
@@ -559,7 +570,7 @@ def cc_ref(student_idx, subject_idx, col_name):
 
 def build_student_sheet(wb, idx):
     n  = idx + 1
-    gs_name_row = 23 + idx
+    gs_name_row = GS_STUDENT_ROW + idx
 
     ws = wb.create_sheet(f"Student {n}")
     set_widths(ws, ST_WIDTHS)
