@@ -65,10 +65,10 @@ ELECTIVES = [
     ("Other 7", True),
     ("Other 8", True),
 ]
-ALL_SUBJECTS = CORE + ELECTIVES   # 14 total
+ALL_SUBJECTS = CORE + ELECTIVES   # 18 total
 
 NUM_STUDENTS  = 10
-NUM_SUBJECTS  = len(ALL_SUBJECTS)   # 14
+NUM_SUBJECTS  = len(ALL_SUBJECTS)   # 18
 CC_HDR_ROW    = 7    # Course Content column-header row
 CC_DATA_START = 8    # first data row in Course Content
 
@@ -403,11 +403,10 @@ def build_getting_started(wb):
 # G(30): Curriculum 2 title   H(11): Unit type   I(9): Sem 1   J(9): Sem 2
 CC_WIDTHS = [26, 30, 11, 9, 9, 3, 30, 11, 9, 9]
 
-# Rows per student block: 1 header + 14 subject rows + 1 spacer = 16
-CC_ROWS_PER_STUDENT = NUM_SUBJECTS + 2   # 1 header + N subjects + 1 spacer
+CC_ROWS_PER_STUDENT = NUM_SUBJECTS + 2          # 1 header + N subjects + 1 spacer
 CC_GROUP_HDR_ROW    = 7
-CC_GROUP_DATA_START = 8    # rows 8–21 = 14 group-studies subject rows
-CC_STUDENT_FIRST    = 23   # Student 1 header row (data rows 24–37, spacer 38)
+CC_GROUP_DATA_START = 8                         # group subject rows start here
+CC_STUDENT_FIRST    = CC_GROUP_DATA_START + NUM_SUBJECTS + 1   # first student header row
 
 def cc_student_hdr_row(si):   # 0-based student index
     return CC_STUDENT_FIRST + si * CC_ROWS_PER_STUDENT
