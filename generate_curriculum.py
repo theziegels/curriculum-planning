@@ -800,13 +800,14 @@ def build_student_sheet(wb, idx):
         c.font      = fnt(size=10, bold=True, color=WARM_700)
         c.alignment = aln(h="left", v="center")
 
-        # Col B: first non-blank curriculum title (no wrap — keeps row height uniform)
+        # Col B: all non-blank curriculum titles joined — no wrap keeps row height fixed
         c = ws.cell(row, 2)
         c.value = (
-            f'=IFERROR(IF({i1_cur}<>"",{i1_cur},'
-            f'IF({g1_cur}<>"","[Grp] "&{g1_cur},'
-            f'IF({i2_cur}<>"",{i2_cur},'
-            f'IF({g2_cur}<>"","[Grp] "&{g2_cur},"—")))),"—")'
+            f'=IFERROR(TEXTJOIN(" · ",TRUE,'
+            f'IF({g1_cur}<>"","[Grp] "&{g1_cur},""),'
+            f'IF({g2_cur}<>"","[Grp] "&{g2_cur},""),'
+            f'IF({i1_cur}<>"",{i1_cur},""),'
+            f'IF({i2_cur}<>"",{i2_cur},"")),"—")'
         )
         c.fill      = fill(alt)
         c.border    = box()
