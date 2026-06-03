@@ -56,10 +56,14 @@ CORE = [
     ("Art / Music",             False),
 ]
 ELECTIVES = [
-    ("Elective / Other 1", True),
-    ("Elective / Other 2", True),
-    ("Elective / Other 3", True),
-    ("Elective / Other 4", True),
+    ("Other 1", True),
+    ("Other 2", True),
+    ("Other 3", True),
+    ("Other 4", True),
+    ("Other 5", True),
+    ("Other 6", True),
+    ("Other 7", True),
+    ("Other 8", True),
 ]
 ALL_SUBJECTS = CORE + ELECTIVES   # 14 total
 
