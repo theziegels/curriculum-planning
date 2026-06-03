@@ -595,7 +595,10 @@ def build_course_content(wb):
 # A(24): Subject  B(28): Curriculum  C(10): S1 Total  D(10): S1/Wk  E(10): S1/Day
 # F(4):  divider
 # G(10): S2 Total  H(10): S2/Wk  I(10): S2/Day  J(12): Unit Type
-ST_WIDTHS = [24, 28, 10, 10, 10, 4, 10, 10, 10, 12]
+ST_WIDTHS = [20, 22, 4, 4, 4, 4, 4, 4, 6, 2, 9, 9, 9, 2, 9, 9, 9, 10]
+# 18 cols: A=Subject B=Curriculum C-H=Mon-Sat I=Days/Wk J=÷
+#          K=S1Total L=S1/Wk M=S1/Day N=÷ O=S2Total P=S2/Wk Q=S2/Day R=UnitType
+ST_NUM_COLS = 18
 
 # CC_COLS — Slot 1 columns in Course Content
 CC_COLS = {
@@ -611,9 +614,6 @@ def cc_ref(student_idx, subject_idx, col_name):
     col = CC_COLS[col_name]
     return f"'Course Content'!{get_column_letter(col)}{r}"
 
-# Row on the student sheet where the Days/Week COUNTA result lives
-ST_DAYS_CELL = "I9"   # formula cell — subject rows reference this
-
 def build_student_sheet(wb, idx):
     n            = idx + 1
     gs_name_row  = GS_STUDENT_ROW + idx
@@ -623,7 +623,7 @@ def build_student_sheet(wb, idx):
     set_widths(ws, ST_WIDTHS)
 
     # ── Banner ────────────────────────────────────────────────────────────────
-    ws.merge_cells("A1:J1")
+    ws.merge_cells("A1:R1")
     c = ws["A1"]
     c.value = (
         f"=IF('Getting Started'!B{gs_name_row}=\"\","
@@ -632,7 +632,7 @@ def build_student_sheet(wb, idx):
     sc(c, bold=True, size=22, color=WHITE, bg=stu_color, h="center", v="center")
     ws.row_dimensions[1].height = 44
 
-    ws.merge_cells("A2:J2")
+    ws.merge_cells("A2:R2")
     c = ws["A2"]
     c.value = (
         f"=IFERROR(\"Grade: \"&'Getting Started'!F{gs_name_row}"
@@ -644,7 +644,7 @@ def build_student_sheet(wb, idx):
 
     # ── Semester overview strip (row 4) ───────────────────────────────────────
     ws.row_dimensions[4].height = 20
-    ws.merge_cells("A4:E4")
+    ws.merge_cells("A4:I4")
     ws["A4"].value = (
         f'=IFERROR("SEM 1   "'
         f'&TEXT({GS_S1_START},"MMM D")&" – "'
@@ -653,43 +653,45 @@ def build_student_sheet(wb, idx):
     )
     sc(ws["A4"], size=10, bold=True, color=WHITE, bg=S1_HDR, h="center", b=box())
 
-    ws.cell(4, 6).fill = fill(OFF_WHITE)
+    ws.cell(4, 10).fill = fill(OFF_WHITE)   # col J divider
 
-    ws.merge_cells("G4:J4")
-    ws["G4"].value = (
+    ws.merge_cells("K4:R4")
+    ws["K4"].value = (
         f'=IFERROR("SEM 2   "'
         f'&TEXT({GS_S2_START},"MMM D")&" – "'
         f'&TEXT({GS_S2_END},"MMM D, YYYY")'
         f'&"   ("&{GS_S2_WEEKS}&" school wks)","SEMESTER 2")'
     )
-    sc(ws["G4"], size=10, bold=True, color=WHITE, bg=S2_HDR, h="center", b=box())
+    sc(ws["K4"], size=10, bold=True, color=WHITE, bg=S2_HDR, h="center", b=box())
 
     spacer(ws, 5)
 
     # ── School Days selector (rows 6–9) ───────────────────────────────────────
     ws.row_dimensions[6].height = 20
-    ws.merge_cells("A6:J6")
+    ws.merge_cells("A6:R6")
     sc(ws["A6"], value="  SCHOOL DAYS  ·  Mark each day this student attends",
        size=10, bold=True, color=WARM_700, bg=LINEN, h="left", b=box())
 
-    # Day labels row 7
+    # Day labels row 7 — cols C-H match schedule table day-marker columns
     ws.row_dimensions[7].height = 18
     days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    day_cols = [2, 3, 4, 5, 6, 7]   # cols B–G
+    day_cols = [3, 4, 5, 6, 7, 8]   # cols C–H
+    sc(ws.cell(7, 1), value="", bg=WARM_200, b=box())
+    sc(ws.cell(7, 2), value="Typical school week  →", size=9, italic=True,
+       color=WARM_700, bg=WARM_200, h="right", b=box())
     for day, col in zip(days, day_cols):
-        c = ws.cell(7, col)
-        sc(c, value=day, size=9, bold=True, color=WARM_700,
-           bg=WARM_200, h="center", b=box())
-    # Days/week label cols H–J
-    ws.merge_cells("H7:J7")
-    sc(ws["H7"], value="Days / Week:", size=9, bold=True,
+        sc(ws.cell(7, col), value=day, size=9, bold=True,
+           color=WARM_700, bg=WARM_200, h="center", b=box())
+    sc(ws.cell(7, 9), value="Days /Wk", size=9, bold=True,
        color=WARM_700, bg=WARM_200, h="center", b=box())
-    # Label for col A
-    sc(ws["A7"], value="Mark with  X  →", size=9, italic=True,
-       color=WARM_500, h="right")
+    ws.cell(7, 10).fill = fill(OFF_WHITE)
+    for col in range(11, ST_NUM_COLS + 1):
+        ws.cell(7, col).fill = fill(WARM_200)
 
-    # Input row 8 — users type X in any day cell
+    # Input row 8 — users type X in C-H for their school week
     ws.row_dimensions[8].height = 22
+    ws.cell(8, 1).fill = fill(OFF_WHITE)
+    ws.cell(8, 2).fill = fill(OFF_WHITE)
     for col in day_cols:
         c = ws.cell(8, col)
         c.fill      = fill(WHITE)
@@ -697,44 +699,47 @@ def build_student_sheet(wb, idx):
         c.font      = fnt(size=14, bold=True, color=stu_color)
         c.alignment = aln(h="center", v="center")
 
-    # Days/week formula — COUNTA of the 6 day cells
-    ws.merge_cells("H8:J8")
-    c = ws["H8"]
-    c.value     = "=MAX(1,COUNTA(B8:G8))"
+    c = ws.cell(8, 9)   # Days/week total for this student's school week
+    c.value     = "=MAX(1,COUNTA(C8:H8))"
     c.fill      = fill(WARM_100)
     c.border    = box(color=WARM_300)
     c.font      = fnt(size=14, bold=True, color=WARM_700)
     c.alignment = aln(h="center", v="center")
 
-    # Blank col A row 8
-    ws.cell(8, 1).fill = fill(OFF_WHITE)
+    ws.cell(8, 10).fill = fill(OFF_WHITE)
+    for col in range(11, ST_NUM_COLS + 1):
+        ws.cell(8, col).fill = fill(OFF_WHITE)
 
     spacer(ws, 9)
 
     # ── Schedule table column headers (row 10) ────────────────────────────────
     ws.row_dimensions[10].height = 28
-    hdr_cols = [
-        (1, 1, "Subject"),
-        (2, 2, "Curriculum  /  Book"),
-        (3, 3, "Sem 1\nTotal"),
-        (4, 4, "Sem 1\n/ Week"),
-        (5, 5, "Sem 1\n/ Day"),
-        (6, 6, ""),
-        (7, 7, "Sem 2\nTotal"),
-        (8, 8, "Sem 2\n/ Week"),
-        (9, 9, "Sem 2\n/ Day"),
-        (10,10, "Unit\nType"),
+    hdr_defs = [
+        (1,  "Subject",        WARM_200, WARM_700),
+        (2,  "Curriculum / Book", WARM_200, WARM_700),
+        (3,  "M",              WARM_200, WARM_700),
+        (4,  "T",              WARM_200, WARM_700),
+        (5,  "W",              WARM_200, WARM_700),
+        (6,  "Th",             WARM_200, WARM_700),
+        (7,  "F",              WARM_200, WARM_700),
+        (8,  "Sa",             WARM_200, WARM_700),
+        (9,  "Days\n/Wk",     WARM_200, WARM_700),
+        (10, "",               OFF_WHITE, OFF_WHITE),
+        (11, "S1\nTotal",     S1_LIGHT,  S1_HDR),
+        (12, "S1\n/Wk",      S1_LIGHT,  S1_HDR),
+        (13, "S1\n/Day",     S1_LIGHT,  S1_HDR),
+        (14, "",               OFF_WHITE, OFF_WHITE),
+        (15, "S2\nTotal",    S2_LIGHT,  S2_HDR),
+        (16, "S2\n/Wk",     S2_LIGHT,  S2_HDR),
+        (17, "S2\n/Day",    S2_LIGHT,  S2_HDR),
+        (18, "Unit\nType",   WARM_200,  WARM_700),
     ]
-    for c1, c2, txt in hdr_cols:
-        if c1 != c2:
-            ws.merge_cells(start_row=10, start_column=c1, end_row=10, end_column=c2)
-        c = ws.cell(10, c1)
-        if c1 == 6:
+    for col, txt, bg_col, fc in hdr_defs:
+        c = ws.cell(10, col)
+        if col in (10, 14):
             c.fill = fill(OFF_WHITE)
         else:
-            bg = S1_LIGHT if c1 in (3,4,5) else S2_LIGHT if c1 in (7,8,9) else WARM_200
-            fc = S1_HDR  if c1 in (3,4,5) else S2_HDR  if c1 in (7,8,9) else WARM_700
-            sc(c, value=txt, size=9, bold=True, color=fc, bg=bg,
+            sc(c, value=txt, size=9, bold=True, color=fc, bg=bg_col,
                h="center", v="center", wrap=True, b=box())
 
     # ── Subject rows ──────────────────────────────────────────────────────────
@@ -752,9 +757,7 @@ def build_student_sheet(wb, idx):
         # Col A: subject label
         c = ws.cell(row, 1)
         if editable:
-            c.value = (
-                f'=IF({cst_ref}="{subj_name}","{subj_name}",{cst_ref})'
-            )
+            c.value = f'=IF({cst_ref}="{subj_name}","{subj_name}",{cst_ref})'
         else:
             c.value = subj_name
         c.fill      = fill(LINEN)
@@ -764,70 +767,77 @@ def build_student_sheet(wb, idx):
 
         # Col B: curriculum title
         c = ws.cell(row, 2)
-        c.value     = (
-            f'=IFERROR(IF({cur_ref}="","—",{cur_ref}),"")'
-        )
+        c.value     = f'=IFERROR(IF({cur_ref}="","—",{cur_ref}),"")'
         c.fill      = fill(alt)
         c.border    = box()
         c.font      = fnt(size=10, color=WARM_900)
         c.alignment = aln(h="left", v="center")
 
-        # Cols C-E: Sem 1 total, /week, /day
-        s1_total_cell = get_column_letter(3) + str(row)
-        s1_wk_cell    = get_column_letter(4) + str(row)
+        # Cols C-H: per-subject day markers (user types X)
+        for col in range(3, 9):
+            c = ws.cell(row, col)
+            c.fill      = fill(WHITE)
+            c.border    = box(color=WARM_300)
+            c.font      = fnt(size=11, bold=True, color=stu_color)
+            c.alignment = aln(h="center", v="center")
 
-        c = ws.cell(row, 3)
+        # Col I: per-subject Days/Wk — defaults to student school-week if blank
+        days_cell = f"I{row}"
+        c = ws.cell(row, 9)
+        c.value     = f"=IF(COUNTA(C{row}:H{row})=0,$I$8,COUNTA(C{row}:H{row}))"
+        c.fill      = fill(WARM_100)
+        c.border    = box()
+        c.font      = fnt(size=10, bold=True, color=WARM_700)
+        c.alignment = aln(h="center")
+
+        # Col J: divider
+        ws.cell(row, 10).fill = fill(OFF_WHITE)
+
+        # Cols K-M: Sem 1
+        s1_l = f"L{row}"
+        c = ws.cell(row, 11)   # K: S1 Total
         c.value     = f"=IFERROR(IF({s1_ref}=\"\",\"—\",{s1_ref}),\"\")"
         c.fill      = fill(S1_LIGHT); c.border = box()
         c.font      = fnt(size=10, color=S1_HDR, bold=True)
         c.alignment = aln(h="center")
 
-        c = ws.cell(row, 4)
-        c.value     = (
-            f'=IFERROR(IF({s1_ref}="","",ROUND({s1_ref}/{GS_S1_WEEKS},1)),"")'
-        )
+        c = ws.cell(row, 12)   # L: S1/Wk (floor — no decimals)
+        c.value     = f'=IFERROR(IF({s1_ref}="","",FLOOR({s1_ref}/{GS_S1_WEEKS},1)),"")'
         c.fill      = fill(S1_LIGHT); c.border = box()
         c.font      = fnt(size=10, color=S1_HDR, bold=True)
         c.alignment = aln(h="center")
 
-        c = ws.cell(row, 5)
-        c.value     = (
-            f'=IFERROR(IF({s1_wk_cell}="","",ROUND({s1_wk_cell}/{ST_DAYS_CELL},1)),"")'
-        )
+        c = ws.cell(row, 13)   # M: S1/Day (floor — no decimals)
+        c.value     = f'=IFERROR(IF({s1_l}="","",FLOOR({s1_l}/{days_cell},1)),"")'
         c.fill      = fill(S1_LIGHT); c.border = box()
         c.font      = fnt(size=11, bold=True, color=S1_HDR)
         c.alignment = aln(h="center")
 
-        # Col F: divider
-        ws.cell(row, 6).fill = fill(OFF_WHITE)
+        # Col N: divider
+        ws.cell(row, 14).fill = fill(OFF_WHITE)
 
-        # Cols G-I: Sem 2 total, /week, /day
-        s2_wk_cell = get_column_letter(8) + str(row)
-
-        c = ws.cell(row, 7)
+        # Cols O-Q: Sem 2
+        s2_p = f"P{row}"
+        c = ws.cell(row, 15)   # O: S2 Total
         c.value     = f"=IFERROR(IF({s2_ref}=\"\",\"—\",{s2_ref}),\"\")"
         c.fill      = fill(S2_LIGHT); c.border = box()
         c.font      = fnt(size=10, color=S2_HDR, bold=True)
         c.alignment = aln(h="center")
 
-        c = ws.cell(row, 8)
-        c.value     = (
-            f'=IFERROR(IF({s2_ref}="","",ROUND({s2_ref}/{GS_S2_WEEKS},1)),"")'
-        )
+        c = ws.cell(row, 16)   # P: S2/Wk (floor — no decimals)
+        c.value     = f'=IFERROR(IF({s2_ref}="","",FLOOR({s2_ref}/{GS_S2_WEEKS},1)),"")'
         c.fill      = fill(S2_LIGHT); c.border = box()
         c.font      = fnt(size=10, color=S2_HDR, bold=True)
         c.alignment = aln(h="center")
 
-        c = ws.cell(row, 9)
-        c.value     = (
-            f'=IFERROR(IF({s2_wk_cell}="","",ROUND({s2_wk_cell}/{ST_DAYS_CELL},1)),"")'
-        )
+        c = ws.cell(row, 17)   # Q: S2/Day (floor — no decimals)
+        c.value     = f'=IFERROR(IF({s2_p}="","",FLOOR({s2_p}/{days_cell},1)),"")'
         c.fill      = fill(S2_LIGHT); c.border = box()
         c.font      = fnt(size=11, bold=True, color=S2_HDR)
         c.alignment = aln(h="center")
 
-        # Col J: unit type
-        c = ws.cell(row, 10)
+        # Col R: unit type
+        c = ws.cell(row, 18)
         c.value     = f'=IFERROR(IF({ut_ref}="","",{ut_ref}),"")'
         c.fill      = fill(alt); c.border = box()
         c.font      = fnt(size=9, italic=True, color=WARM_500)
