@@ -404,7 +404,7 @@ def build_getting_started(wb):
 CC_WIDTHS = [26, 30, 11, 9, 9, 3, 30, 11, 9, 9]
 
 # Rows per student block: 1 header + 14 subject rows + 1 spacer = 16
-CC_ROWS_PER_STUDENT = 16
+CC_ROWS_PER_STUDENT = NUM_SUBJECTS + 2   # 1 header + N subjects + 1 spacer
 CC_GROUP_HDR_ROW    = 7
 CC_GROUP_DATA_START = 8    # rows 8–21 = 14 group-studies subject rows
 CC_STUDENT_FIRST    = 23   # Student 1 header row (data rows 24–37, spacer 38)
