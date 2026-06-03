@@ -768,27 +768,22 @@ def build_student_sheet(wb, idx):
             sc(c, value=txt, size=9, bold=True, color=fc, bg=bg_col,
                h="center", v="center", wrap=True, b=box())
 
-    # ── Subject rows ──────────────────────────────────────────────────────────
+    # ── Subject rows — 4 sub-rows each ───────────────────────────────────────
+    # Sub-row order: Group Slot 1, Group Slot 2, Indiv Slot 1, Indiv Slot 2
+    ST_SUBROWS = 4
     for sj, (subj_name, editable) in enumerate(ALL_SUBJECTS):
-        row = 11 + sj
-        ws.row_dimensions[row].height = 22
-        alt = WHITE if sj % 2 == 0 else OFF_WHITE
+        first_row = 11 + sj * ST_SUBROWS
+        last_row  = first_row + ST_SUBROWS - 1
 
-        # All four curriculum sources for this subject
-        i1_s1  = cc_ref(idx, sj, "s1_units");   i1_s2  = cc_ref(idx, sj, "s2_units")
-        i2_s1  = cc_ref2(idx, sj, "s1_units");  i2_s2  = cc_ref2(idx, sj, "s2_units")
-        g1_s1  = cc_group_ref(sj, "s1_units");  g1_s2  = cc_group_ref(sj, "s2_units")
-        g2_s1  = cc_group_ref2(sj, "s1_units"); g2_s2  = cc_group_ref2(sj, "s2_units")
-        i1_cur = cc_ref(idx, sj, "curriculum"); i2_cur = cc_ref2(idx, sj, "curriculum")
-        g1_cur = cc_group_ref(sj, "curriculum"); g2_cur = cc_group_ref2(sj, "curriculum")
-        i1_ut  = cc_ref(idx, sj, "unit_type");  i2_ut  = cc_ref2(idx, sj, "unit_type")
-        g1_ut  = cc_group_ref(sj, "unit_type"); g2_ut  = cc_group_ref2(sj, "unit_type")
-        cst_ref = cc_ref(idx, sj, "custom_name")
-
-        # Col A: subject label
-        c = ws.cell(row, 1)
+        # Col A: subject label — merged across all 4 sub-rows
+        ws.merge_cells(start_row=first_row, start_column=1,
+                       end_row=last_row,   end_column=1)
+        c = ws.cell(first_row, 1)
         if editable:
-            c.value = f'=IF({cst_ref}="{subj_name}","{subj_name}",{cst_ref})'
+            c.value = (
+                f'=IF({cc_ref(idx, sj, "custom_name")}="{subj_name}",'
+                f'"{subj_name}",{cc_ref(idx, sj, "custom_name")})'
+            )
         else:
             c.value = subj_name
         c.fill      = fill(LINEN)
@@ -796,99 +791,128 @@ def build_student_sheet(wb, idx):
         c.font      = fnt(size=10, bold=True, color=WARM_700)
         c.alignment = aln(h="left", v="center")
 
-        # Col B: all curriculum titles joined — group entries labeled [Grp]
-        c = ws.cell(row, 2)
-        c.value = (
-            f'=IFERROR(TEXTJOIN(" · ",TRUE,'
-            f'IF({g1_cur}<>"","[Grp] "&{g1_cur},""),'
-            f'IF({g2_cur}<>"","[Grp] "&{g2_cur},""),'
-            f'IF({i1_cur}<>"",{i1_cur},""),'
-            f'IF({i2_cur}<>"",{i2_cur},"")),"—")'
-        )
-        c.fill      = fill(alt)
-        c.border    = box()
-        c.font      = fnt(size=10, color=WARM_900)
-        c.alignment = aln(h="left", v="center", wrap=True)
+        # Sub-row sources: (cur_ref, s1_ref, s2_ref, ut_ref, is_group, row_bg)
+        sub_sources = [
+            (cc_group_ref(sj,"curriculum"), cc_group_ref(sj,"s1_units"),
+             cc_group_ref(sj,"s2_units"),   cc_group_ref(sj,"unit_type"),
+             True,  ACCENT_PALE),
+            (cc_group_ref2(sj,"curriculum"),cc_group_ref2(sj,"s1_units"),
+             cc_group_ref2(sj,"s2_units"),  cc_group_ref2(sj,"unit_type"),
+             True,  ACCENT_PALE),
+            (cc_ref(idx,sj,"curriculum"),   cc_ref(idx,sj,"s1_units"),
+             cc_ref(idx,sj,"s2_units"),     cc_ref(idx,sj,"unit_type"),
+             False, WHITE),
+            (cc_ref2(idx,sj,"curriculum"),  cc_ref2(idx,sj,"s1_units"),
+             cc_ref2(idx,sj,"s2_units"),    cc_ref2(idx,sj,"unit_type"),
+             False, OFF_WHITE),
+        ]
 
-        # Cols C-H: per-subject day markers (user types X)
-        for col in range(3, 9):
-            c = ws.cell(row, col)
-            c.fill      = fill(WHITE)
-            c.border    = box(color=WARM_300)
-            c.font      = fnt(size=11, bold=True, color=stu_color)
-            c.alignment = aln(h="center", v="center")
+        for k, (cur_r, s1_r, s2_r, ut_r, is_grp, row_bg) in enumerate(sub_sources):
+            row = first_row + k
+            ws.row_dimensions[row].height = 20
 
-        # Col I: per-subject Days/Wk — defaults to student school-week if blank
-        days_cell = f"I{row}"
-        c = ws.cell(row, 9)
-        c.value     = f"=IF(COUNTA(C{row}:H{row})=0,$I$8,COUNTA(C{row}:H{row}))"
-        c.fill      = fill(WARM_100)
-        c.border    = box()
-        c.font      = fnt(size=10, bold=True, color=WARM_700)
-        c.alignment = aln(h="center")
+            # Bottom border on last sub-row to divide subjects
+            def _b(col, is_last_sub=False):
+                if is_last_sub:
+                    s = side("thin", WARM_300)
+                    return Border(left=s, right=s, top=s,
+                                  bottom=Side(style="medium", color=WARM_500))
+                return box()
 
-        # Col J: divider
-        ws.cell(row, 10).fill = fill(OFF_WHITE)
+            is_last = (k == ST_SUBROWS - 1)
 
-        # helper: sum up to 4 unit values (blank treated as 0)
-        def unit_sum(refs):
-            parts = "+".join(f"IFERROR({r}*1,0)" for r in refs)
-            all_blank = "*".join(f'({r}="")'for r in refs)
-            return f'=IFERROR(IF({all_blank},"—",{parts}),"")'
+            # Col B: curriculum title (group rows italicised; blank rows stay quiet)
+            c = ws.cell(row, 2)
+            c.value     = f'=IFERROR(IF({cur_r}="","",{cur_r}),"")'
+            c.fill      = fill(row_bg)
+            c.border    = _b(2, is_last)
+            c.font      = fnt(size=10, italic=is_grp,
+                              color=WARM_500 if is_grp else WARM_900)
+            c.alignment = aln(h="left", v="center")
 
-        # Cols K-M: Sem 1
-        s1_l = f"L{row}"
-        c = ws.cell(row, 11)   # K: S1 Total (all sources)
-        c.value     = unit_sum([g1_s1, g2_s1, i1_s1, i2_s1])
-        c.fill      = fill(S1_LIGHT); c.border = box()
-        c.font      = fnt(size=10, color=S1_HDR, bold=True)
-        c.alignment = aln(h="center")
+            # Cols C-H: day markers
+            for col in range(3, 9):
+                c = ws.cell(row, col)
+                c.fill      = fill(WHITE)
+                c.border    = _b(col, is_last)
+                c.font      = fnt(size=11, bold=True, color=stu_color)
+                c.alignment = aln(h="center", v="center")
 
-        c = ws.cell(row, 12)   # L: S1/Wk (floor — no decimals)
-        c.value     = f'=IFERROR(IF(K{row}="","",IF(K{row}="—","",FLOOR(K{row}/{GS_S1_WEEKS},1))),"")'
-        c.fill      = fill(S1_LIGHT); c.border = box()
-        c.font      = fnt(size=10, color=S1_HDR, bold=True)
-        c.alignment = aln(h="center")
+            # Col I: per-sub-row Days/Wk (defaults to school-week selector I8)
+            days_cell = f"I{row}"
+            c = ws.cell(row, 9)
+            c.value     = (
+                f"=IF(COUNTA(C{row}:H{row})=0,$I$8,COUNTA(C{row}:H{row}))"
+            )
+            c.fill      = fill(WARM_100)
+            c.border    = _b(9, is_last)
+            c.font      = fnt(size=10, bold=True, color=WARM_700)
+            c.alignment = aln(h="center")
 
-        c = ws.cell(row, 13)   # M: S1/Day (floor — no decimals)
-        c.value     = f'=IFERROR(IF({s1_l}="","",IF({s1_l}="—","",FLOOR({s1_l}/{days_cell},1))),"")'
-        c.fill      = fill(S1_LIGHT); c.border = box()
-        c.font      = fnt(size=11, bold=True, color=S1_HDR)
-        c.alignment = aln(h="center")
+            # Col J: divider
+            ws.cell(row, 10).fill = fill(OFF_WHITE)
 
-        # Col N: divider
-        ws.cell(row, 14).fill = fill(OFF_WHITE)
+            # Cols K-M: Sem 1
+            s1_l = f"L{row}"
+            c = ws.cell(row, 11)
+            c.value     = f'=IFERROR(IF({s1_r}="","—",{s1_r}),"")'
+            c.fill      = fill(S1_LIGHT); c.border = _b(11, is_last)
+            c.font      = fnt(size=10, color=S1_HDR, bold=True)
+            c.alignment = aln(h="center")
 
-        # Cols O-Q: Sem 2
-        s2_p = f"P{row}"
-        c = ws.cell(row, 15)   # O: S2 Total (all sources)
-        c.value     = unit_sum([g1_s2, g2_s2, i1_s2, i2_s2])
-        c.fill      = fill(S2_LIGHT); c.border = box()
-        c.font      = fnt(size=10, color=S2_HDR, bold=True)
-        c.alignment = aln(h="center")
+            c = ws.cell(row, 12)
+            c.value     = (
+                f'=IFERROR(IF(K{row}="","",IF(K{row}="—","",'
+                f'FLOOR(K{row}/{GS_S1_WEEKS},1))),"")'
+            )
+            c.fill      = fill(S1_LIGHT); c.border = _b(12, is_last)
+            c.font      = fnt(size=10, color=S1_HDR, bold=True)
+            c.alignment = aln(h="center")
 
-        c = ws.cell(row, 16)   # P: S2/Wk (floor — no decimals)
-        c.value     = f'=IFERROR(IF(O{row}="","",IF(O{row}="—","",FLOOR(O{row}/{GS_S2_WEEKS},1))),"")'
-        c.fill      = fill(S2_LIGHT); c.border = box()
-        c.font      = fnt(size=10, color=S2_HDR, bold=True)
-        c.alignment = aln(h="center")
+            c = ws.cell(row, 13)
+            c.value     = (
+                f'=IFERROR(IF({s1_l}="","",IF({s1_l}="—","",'
+                f'FLOOR({s1_l}/{days_cell},1))),"")'
+            )
+            c.fill      = fill(S1_LIGHT); c.border = _b(13, is_last)
+            c.font      = fnt(size=11, bold=True, color=S1_HDR)
+            c.alignment = aln(h="center")
 
-        c = ws.cell(row, 17)   # Q: S2/Day (floor — no decimals)
-        c.value     = f'=IFERROR(IF({s2_p}="","",IF({s2_p}="—","",FLOOR({s2_p}/{days_cell},1))),"")'
-        c.fill      = fill(S2_LIGHT); c.border = box()
-        c.font      = fnt(size=11, bold=True, color=S2_HDR)
-        c.alignment = aln(h="center")
+            # Col N: divider
+            ws.cell(row, 14).fill = fill(OFF_WHITE)
 
-        # Col R: unit type — first non-blank across all four slots
-        c = ws.cell(row, 18)
-        c.value     = (
-            f'=IFERROR(IF({i1_ut}<>"",{i1_ut},'
-            f'IF({i2_ut}<>"",{i2_ut},'
-            f'IF({g1_ut}<>"",{g1_ut},{g2_ut}))),"")'
-        )
-        c.fill      = fill(alt); c.border = box()
-        c.font      = fnt(size=9, italic=True, color=WARM_500)
-        c.alignment = aln(h="center")
+            # Cols O-Q: Sem 2
+            s2_p = f"P{row}"
+            c = ws.cell(row, 15)
+            c.value     = f'=IFERROR(IF({s2_r}="","—",{s2_r}),"")'
+            c.fill      = fill(S2_LIGHT); c.border = _b(15, is_last)
+            c.font      = fnt(size=10, color=S2_HDR, bold=True)
+            c.alignment = aln(h="center")
+
+            c = ws.cell(row, 16)
+            c.value     = (
+                f'=IFERROR(IF(O{row}="","",IF(O{row}="—","",'
+                f'FLOOR(O{row}/{GS_S2_WEEKS},1))),"")'
+            )
+            c.fill      = fill(S2_LIGHT); c.border = _b(16, is_last)
+            c.font      = fnt(size=10, color=S2_HDR, bold=True)
+            c.alignment = aln(h="center")
+
+            c = ws.cell(row, 17)
+            c.value     = (
+                f'=IFERROR(IF({s2_p}="","",IF({s2_p}="—","",'
+                f'FLOOR({s2_p}/{days_cell},1))),"")'
+            )
+            c.fill      = fill(S2_LIGHT); c.border = _b(17, is_last)
+            c.font      = fnt(size=11, bold=True, color=S2_HDR)
+            c.alignment = aln(h="center")
+
+            # Col R: unit type
+            c = ws.cell(row, 18)
+            c.value     = f'=IFERROR(IF({ut_r}="","",{ut_r}),"")'
+            c.fill      = fill(row_bg); c.border = _b(18, is_last)
+            c.font      = fnt(size=9, italic=True, color=WARM_500)
+            c.alignment = aln(h="center")
 
     ws.freeze_panes = "A11"
     return ws
