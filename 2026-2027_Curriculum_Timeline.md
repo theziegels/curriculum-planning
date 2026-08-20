@@ -9,24 +9,24 @@ guess at) and the rest reflows from there.
 These aren't in your original notes — flag anything that's wrong and the
 timeline can be re-run:
 
-- **School year:** Tue, Sept 8, 2026 – Fri, May 28, 2027 (~33 instructional weeks).
-- **Maternity break:** Sat, Dec 19, 2026 – Sun, Jan 24, 2027 off (last day Fri
-  Dec 18, resume Mon Jan 25) — this lines up almost exactly with a normal
-  semester break, so it costs very little extra time.
-- **Friday = catch-up/flex**, not a full day off for anyone except Haley (see
-  below) — used for review, makeup work, co-op, field trips, etc. New content
-  runs Mon–Thu.
+- **School year:** Tue, Sept 8, 2026 – Fri, May 28, 2027 (~34 instructional weeks).
+- **Maternity break:** last day Fri Dec 18, 2026 — resume **Mon, Jan 18, 2027**
+  (one week sooner than a full semester-length break).
+- **Friday** is catch-up/flex for Cody, Hannah, Caleb, and Haley (review,
+  makeup work, the podcast) — new content runs Mon–Thu for them. **Carson and
+  Heather's Friday is open/optional app time** (ABC Reading, Todo Math) rather
+  than catch-up — they don't have new content to catch up on.
 - **Math 7 pace (Cody & Hannah)** and **Math 6 pace (Hannah)**: not specified,
   so I assumed **4 weeks/book** (a bit brisker than the 5 wks/book you gave
   for Language Arts). Tell me if that's off.
-- **Language Arts 4 & Math 4 (Caleb)**: you said 4–5 weeks/book; I used a
-  **4.5-week average**. His built-in catch-up day (every 1–2 weeks) isn't
-  modeled as a specific weekday below — treat it as a floating buffer you
-  slot in on Wed or Fri when he's behind, which will push these projections
-  slightly later in practice.
-- **Haley's weekly day off** is treated as the *same* Friday catch-up day
-  everyone else has, not a second day — let me know if you actually wanted a
-  non-Friday day carved out just for her.
+- **Language Arts 4 & Math 4 (Caleb):** re-paced so he finishes **exactly
+  book 7** the week school ends, rather than landing partway into book 8 —
+  that works out to **~4.9 weeks/book**, still inside the 4–5 week range you
+  gave. His floating catch-up day (every 1–2 weeks) isn't pinned to a specific
+  weekday below; expect it to slow this slightly in practice, so book 7 may
+  land a week or so into June rather than exactly May 28.
+- **Haley's weekly day off** is the *same* Friday catch-up day everyone else
+  has, not a second day.
 
 ## Weekly Rhythm (the steady-state week)
 
@@ -35,14 +35,18 @@ timeline can be re-run:
 | **Cody (7/8)** | LA7 · Math7 · Adam to Us | LA7 · Math7 · Adam to Us | LA7 · Math7 · Adam to Us | LA7 · Math7 · Adam to Us | Catch-up · RCHK podcast |
 | **Hannah (7)** | LA7 · Math6→7 · Adam to Us | LA7 · Math6→7 · Adam to Us | LA7 · Math6→7 · Adam to Us | LA7 · Math6→7 · Adam to Us | Catch-up · RCHK podcast |
 | **Caleb (4/5)** | LA4 · Math4 · Adam to Us | LA4 · Math4 · Adam to Us | LA4 · Math4 · Adam to Us | LA4 · Math4 · Adam to Us | Catch-up (+ floating buffer day every 1–2 wks) · RCHK podcast |
-| **Haley (3)** | Math3 · Spelling · Adam to Us · Devotional | Math3 · Reading · Adam to Us · Devotional | Math3 · Spelling · Adam to Us · Devotional | Math3 · Reading · Adam to Us · Devotional | OFF — catch-up/leisure · (RCHK podcast if joining group) |
-| **Carson (1)** | Devotional · Tech (ABC Reading/Todo Math) | Workbook · Devotional | Devotional · Tech | Workbook · Devotional | Tech / open |
-| **Heather (Pre-K)** | Devotional · Tech | Workbook · Devotional | Devotional · Tech | Workbook · Devotional | Tech / open |
+| **Haley (3)** | Math3 · Spelling · Adam to Us · Devotional | Math3 · Reading · Adam to Us · Devotional | Math3 · Spelling · Adam to Us · Devotional | Math3 · Reading · Adam to Us · Devotional | OFF — catch-up/leisure · RCHK podcast if joining group |
+| **Carson (1)** | Devotional · Tech (ABC Reading/Todo Math) | Workbook · Devotional | Devotional · Tech | Workbook · Devotional | Open / optional apps |
+| **Heather (Pre-K)** | Devotional · Tech | Workbook · Devotional | Devotional · Tech | Workbook · Devotional | Open / optional apps |
 
 *Adam to Us (Science & History) is the daily group study for Cody, Hannah,
 Caleb, and Haley, Mon–Thu; Real Cool History for Kids podcast covers the same
-slot on Friday. Carson & Heather's workbooks (2x/wk) and tech apps (3x/wk) are
-placed on opposite days as requested; swap freely.*
+slot on Friday for that group only. Carson & Heather's workbooks (2x/wk) and
+tech apps (3x/wk) are placed on opposite days as requested; swap freely.*
+
+A per-child handout (just their own row, laid out full-page) and this same
+combined table as a master copy are published as a companion artifact — see
+the link shared in conversation.
 
 ## Month-by-Month Timeline
 
@@ -51,42 +55,42 @@ month, at the assumed pace. Everything else (Adam to Us, Reading/Spelling,
 devotional, tech apps, workbooks) runs at the same steady weekly rate all
 year and isn't re-listed every month.
 
-| Month | Cody — LA7 | Cody — Math7 | Hannah — LA7 | Hannah — Math6/7 | Caleb — LA4 | Caleb — Math4 | Haley — Math3 |
-|---|---|---|---|---|---|---|---|
-| Sept 2026 | Book 4 | Book 6 | Book 4 | Math6 Bk 6 | Book 1 | Book 1 | Book 2 |
-| Oct 2026 | Book 5 | Book 7 | Book 5 | Math6 Bk 7 | Book 2 | Book 2 | Book 3 |
-| Nov 2026 | Book 6 | Book 9 | Book 6 | Math6 Bk 9 | Book 3 | Book 3 | Book 4 |
-| Dec 2026 *(school through 12/18)* | Book 6 | Book 9 | Book 6 | Math6 Bk 9 | Book 4 | Book 4 | Book 4 |
-| **Dec 19 – Jan 24: Maternity / new-baby break — no school** ||||||||
-| Jan 2027 *(resume 1/25)* | Book 7 | Book 9 | Book 7 | Math6 Bk 9 | Book 4 | Book 4 | Book 5 |
-| Feb 2027 | Book 7 | **Book 10** | Book 7 | **Math6 Bk 10** | Book 5 | Book 5 | Book 5 |
-| Mar 2027 | Book 8 | Review begins | Book 8 | **Math7 Bk 1→2** | Book 6 | Book 6 | Book 6 |
-| Apr 2027 | Book 9 | Review | Book 9 | Math7 Bk 3 | Book 7 | Book 7 | Book 7 |
-| May 2027 | **Book 10** | Review | **Book 10** | Math7 Bk 3 (done/reinforce) | Book 8 (partial) | Book 8 (partial) | Book 8 (partial) |
+| Month | Cody — LA7 | Cody — Math7 | Hannah — LA7 | Hannah — Math6/7 | Caleb — LA4/Math4 | Haley — Math3 |
+|---|---|---|---|---|---|---|
+| Sept 2026 | Book 4 | Book 6 | Book 4 | Math6 Bk 6 | Book 1 | Book 2 |
+| Oct 2026 | Book 5 | Book 7 | Book 5 | Math6 Bk 7 | Book 2 | Book 3 |
+| Nov 2026 | Book 6 | Book 9 | Book 6 | Math6 Bk 9 | Book 3 | Book 4 |
+| Dec 2026 *(school through 12/18)* | Book 6 | Book 9 | Book 6 | Math6 Bk 9 | Book 3 | Book 4 |
+| **Dec 19 – Jan 17: Maternity / new-baby break — no school** |||||||
+| Jan 2027 *(resume 1/18)* | Book 7 | **Book 10** | Book 7 | **Math6 Bk 10** | Book 4 | Book 5 |
+| Feb 2027 | Book 8 | Review begins | Book 8 | **Math7 Bk 1** | Book 5 | Book 6 |
+| Mar 2027 | Book 9 | Review | Book 9 | Math7 Bk 2 | Book 6 | Book 7 |
+| Apr 2027 | Book 9 | Review | Book 9 | Math7 Bk 3 | Book 6 | Book 7 |
+| May 2027 | **Book 10** | Review | **Book 10** | Math7 Bk 3 (done/reinforce) | **Book 7 — finishes clean** | Book 8 (partial) |
 
 **Milestones:**
-- **Cody** finishes Math 7 (book 10) in February, then has ~13 weeks of pure
-  review through May — matches your plan exactly. LA7 book 10 lands right at
-  the very end of May, so it's a tight finish; a slow week anywhere pushes it
-  into June.
-- **Hannah** finishes Math 6 in February and gets all 3 hoped-for Math 7 books
-  in by late May — also a tight finish, no slack if a week gets missed.
-- **Caleb** reaches roughly book 7–8 of 10 in both LA4 and Math4 by year end
-  at this pace — books 8–10 (partial) will likely carry into summer or next
-  year, and his floating catch-up days will stretch that further. That's
-  normal, not a problem, but worth expecting rather than being surprised by.
+- **Cody** finishes Math 7 (book 10) in January, leaving a long, comfortable
+  stretch of review from February through May. LA7 book 10 also lands
+  cleanly by the last week of May.
+- **Hannah** finishes Math 6 in January and now has real breathing room to
+  get through all 3 hoped-for Math 7 books by late April/May, with a buffer
+  she didn't have before.
+- **Caleb** now finishes **book 7 of both LA4 and Math4 right as the school
+  year ends**, at a pace of ~4.9 weeks/book — no more landing mid-book. His
+  floating catch-up days are the main risk to that clean finish; if he uses
+  several, book 7 may wrap in early June instead.
 - **Haley** reaches roughly book 7–8 of 10 in Math3 (started at book 2) by
-  year end — books 9–10 likely carry over similarly.
+  year end — books 9–10 likely carry into next year. (Not adjusted — let me
+  know if you'd like her capped at a clean book like Caleb's.)
 
 ## Notes / things to revisit
 
-- If you'd rather Cody/Hannah's math not run this close to the wire, either
-  push the school year end a couple weeks later, or confirm the 4-wk/book
-  assumption is realistic for those workbooks.
-- Caleb's and Haley's uncompleted books aren't a scheduling failure — with
-  10 (or 9) sequential books and only ~33 instructional weeks, full
-  completion at a steady pace was never going to fit; plan on a summer
-  bridge or accept rolling into next year's book 1.
-- The maternity break sits almost exactly on the natural Dec/Jan semester
-  seam, so it barely costs any extra instructional time beyond a normal
-  winter break — nice timing.
+- Caleb's pace is now reverse-engineered to land exactly on book 7 — if his
+  actual books run faster or slower than 4.9 weeks each, the finish date
+  (not the book number) is what moves.
+- Haley's Math3 still won't finish all 9 assigned books in 34 weeks — same
+  situation as before, just not adjusted since you only asked about Caleb.
+  Say the word if you'd like her capped the same way.
+- The maternity break is now 4 weeks off (Dec 19–Jan 17) instead of the
+  original ~4.5, which is what freed up the extra week that let Caleb land
+  cleanly on book 7 and gave Cody/Hannah's math some breathing room.
