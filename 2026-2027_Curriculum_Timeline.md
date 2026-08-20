@@ -32,14 +32,14 @@ timeline can be re-run:
 
 | | Mon | Tue | Wed | Thu | Fri |
 |---|---|---|---|---|---|
-| **Cody (7/8)** | LA7 · Math7 · Adam to Us | LA7 · Math7 · Adam to Us | LA7 · Math7 · Adam to Us | LA7 · Math7 · Adam to Us | Catch-up · RCHK podcast |
-| **Hannah (7)** | LA7 · Math6→7 · Adam to Us | LA7 · Math6→7 · Adam to Us | LA7 · Math6→7 · Adam to Us | LA7 · Math6→7 · Adam to Us | Catch-up · RCHK podcast |
-| **Caleb (4/5)** | LA4 · Math4 · Adam to Us | LA4 · Math4 · Adam to Us | LA4 · Math4 · Adam to Us | LA4 · Math4 · Adam to Us | Catch-up (+ floating buffer day every 1–2 wks) · RCHK podcast |
-| **Haley (3)** | Math3 · Spelling · Adam to Us · Devotional | Math3 · Reading · Adam to Us · Devotional | Math3 · Spelling · Adam to Us · Devotional | Math3 · Reading · Adam to Us · Devotional | OFF — catch-up/leisure · RCHK podcast if joining group |
+| **Cody (7/8)** | LA7 · Math7 · From Adam to Us | LA7 · Math7 · From Adam to Us | LA7 · Math7 · From Adam to Us | LA7 · Math7 · From Adam to Us | Catch-up · RCHK podcast |
+| **Hannah (7)** | LA7 · Math6→7 · From Adam to Us | LA7 · Math6→7 · From Adam to Us | LA7 · Math6→7 · From Adam to Us | LA7 · Math6→7 · From Adam to Us | Catch-up · RCHK podcast |
+| **Caleb (4/5)** | LA4 · Math4 · From Adam to Us | LA4 · Math4 · From Adam to Us | LA4 · Math4 · From Adam to Us | LA4 · Math4 · From Adam to Us | Catch-up (+ floating buffer day every 1–2 wks) · RCHK podcast |
+| **Haley (3)** | Math3 · Spelling · From Adam to Us · Devotional | Math3 · Reading · From Adam to Us · Devotional | Math3 · Spelling · From Adam to Us · Devotional | Math3 · Reading · From Adam to Us · Devotional | OFF — catch-up/leisure · RCHK podcast if joining group |
 | **Carson (1)** | Devotional · Tech (ABC Reading/Todo Math) | Workbook · Devotional | Devotional · Tech | Workbook · Devotional | Open / optional apps |
 | **Heather (Pre-K)** | Devotional · Tech | Workbook · Devotional | Devotional · Tech | Workbook · Devotional | Open / optional apps |
 
-*Adam to Us (Science & History) is the daily group study for Cody, Hannah,
+*From Adam to Us (Science & History) is the daily group study for Cody, Hannah,
 Caleb, and Haley, Mon–Thu; Real Cool History for Kids podcast covers the same
 slot on Friday for that group only. Carson & Heather's workbooks (2x/wk) and
 tech apps (3x/wk) are placed on opposite days as requested; swap freely.*
@@ -51,7 +51,7 @@ the link shared in conversation.
 ## Month-by-Month Timeline
 
 Each row shows what book/unit that subject should be *on* by the end of the
-month, at the assumed pace. Everything else (Adam to Us, Reading/Spelling,
+month, at the assumed pace. Everything else (From Adam to Us, Reading/Spelling,
 devotional, tech apps, workbooks) runs at the same steady weekly rate all
 year and isn't re-listed every month.
 
